@@ -1,8 +1,0 @@
-[core]
-	excludesfile = /settings/.global_gitignore
-
-[push]
-        autoSetupRemote = true
-[user]
-	email = thehuntingblade5@gmail.com
-	name = BeanJ4m

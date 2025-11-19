@@ -1,22 +1,16 @@
+# Ignore all files by default
+*
 
-# Ignore all hidden files (starting with .)
+# DO NOT ignore .gitignore itself
+!.gitignore
 
-.*
-!.gitignore        # keep .gitignore itself
+# Keep all Jupyter notebooks in root
+!*.ipynb
 
-
-# Ignore all folders and their contents
-
-*/
-
-
-# EXCEPT keep the data folder and its contents
-
+# Keep the data folder and all contents
 !data/
 !data/**
 
-
-# Keep all root-level files (not starting with .)
-
-!*.*
-
+# Ignore all hidden files
+.*
+!.gitignore
