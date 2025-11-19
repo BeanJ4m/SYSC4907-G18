@@ -1,12 +1,22 @@
+
+# Ignore all hidden files (starting with .)
+
+.*
+!.gitignore        # keep .gitignore itself
+
+
 # Ignore all folders and their contents
+
 */
 
-# But keep root-level files
-!*.*
 
-# Do NOT ignore the data folder
+# EXCEPT keep the data folder and its contents
+
 !data/
 !data/**
 
-# Keep .gitignore itself
-!.gitignore
+
+# Keep all root-level files (not starting with .)
+
+!*.*
+
