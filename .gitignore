@@ -1,5 +1,4 @@
 # Ignore all files by default
-*
 
 # DO NOT ignore .gitignore itself
 !.gitignore

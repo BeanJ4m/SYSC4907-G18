@@ -1,0 +1,11 @@
+Dataset,Epoch,Accuracy,Precision,Recall,F1_score,Batch_Size,Learning_Rate
+Data/2_Dataset_5_Attack_30_One_Attack_Type.csv,1,91.24,0.9407,0.856,0.8857,128,0.0001
+Data/2_Dataset_5_Attack_30_One_Attack_Type.csv,2,91.25,0.9407,0.8561,0.8858,128,0.0001
+Data/2_Dataset_5_Attack_30_One_Attack_Type.csv,3,90.81,0.9307,0.853,0.8808,128,0.0001
+Data/2_Dataset_5_Attack_30_One_Attack_Type.csv,4,90.83,0.9311,0.8531,0.881,128,0.0001
+Data/2_Dataset_5_Attack_30_One_Attack_Type.csv,5,90.84,0.9314,0.8532,0.8811,128,0.0001
+Data/2_Dataset_5_Attack_30_One_Attack_Type.csv,6,91.0,0.9322,0.8558,0.8834,128,0.0001
+Data/2_Dataset_5_Attack_30_One_Attack_Type.csv,7,89.8,0.9265,0.8349,0.8654,128,0.0001
+Data/2_Dataset_5_Attack_30_One_Attack_Type.csv,8,89.91,0.9271,0.8367,0.8671,128,0.0001
+Data/2_Dataset_5_Attack_30_One_Attack_Type.csv,9,91.25,0.9344,0.8597,0.8869,128,0.0001
+Data/2_Dataset_5_Attack_30_One_Attack_Type.csv,10,73.57,0.8611,0.5596,0.5272,128,0.0001
