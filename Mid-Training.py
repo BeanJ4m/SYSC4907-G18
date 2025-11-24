@@ -66,9 +66,9 @@ OUTPUT_SIZE = config["OUTPUT_SIZE"]
 DROPOUT_RATE = config["DROPOUT_RATE"]
 
 # Mid-training settings
-STAGE1_ROUNDS = 30  # Train first 10 rounds
-STAGE2_START = 31   # Continue from round 11
-LLM_SCRIPT = "lam.py"
+STAGE1_ROUNDS = 10  # Train first 10 rounds
+STAGE2_START = 11   # Continue from round 11
+LLM_SCRIPT = "llm.py"
 
 # For metrics calculation
 CLASS_COUNT = OUTPUT_SIZE
