@@ -1,0 +1,22 @@
+{
+  "NUM_CLIENTS": 48,
+  "ROUNDS": 8,
+  "BATCH_SIZE": 64,
+  "LEARNING_RATE": 0.0025,
+  "EPOCHS": 1,
+  "DATA_GROUPS": 240,
+  "BATCH_ROUND": 6,
+  "NUM_ATCKS": 14,
+  "FL": true,
+  "MODE": "DNN",
+  "G": 0,
+  "LLM_TRIGGER_ROUND": 2,
+  "INPUT_SIZE": 98,
+  "HIDDEN1_SIZE": 64,
+  "HIDDEN2_SIZE": 128,
+
+  "DATA_DIR": "/teamspace/studios/this_studio/data",
+
+  "PATH_TEMPLATE": "{MODE}-FL-{FL}-{NUM_CLIENTS}-clients-{NUM_ATCKS}-atk-{ROUNDS}-rounds-{EPOCHS}-epochs-{LEARNING_RATE}-lr-{DATA_GROUPS}-groups"
+}
+
