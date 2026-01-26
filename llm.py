@@ -7,7 +7,6 @@ WITH STRICT CONSTRAINTS to prevent bad suggestions
 
 import json
 import pickle
-import torch
 import re
 import subprocess
 import sys
@@ -17,6 +16,16 @@ import time
 import requests
 import platform
 
+
+
+# ==========================================================
+# Hardcoded project paths (DO NOT AUTO-DETECT)
+# ==========================================================
+BASE_DIR = Path("/teamspace/studios/this_studio")
+DATA_DIR = BASE_DIR / "data"
+ITERATION_MODELS_DIR = BASE_DIR / "iteration_models"
+OUTPUT_DIR = BASE_DIR / "centralized_output"
+CONFIG_PATH = BASE_DIR / "config.json"
 
 # ==========================================================
 #  Ollama installation + startup
@@ -31,8 +40,17 @@ def is_ollama_installed():
     try:
         result = subprocess.run(["which", "ollama"], capture_output=True, text=True)
         return result.returncode == 0
+           
     except Exception:
         return False
+
+# ==========================================================
+#  PUBLIC API FOR NOTEBOOK INTEGRATION
+# ==========================================================
+
+def _get_torch():
+    import torch
+    return torch
 
 
 def install_ollama():
@@ -182,66 +200,61 @@ def ask_llm(prompt, model=MODEL_NAME):
     except Exception as e:
         raise Exception(f"Ollama query failed: {e}")
 
+class Net:
+    def __init__(self, input_size, hidden1_size, hidden2_size, output_size, dropout_rate):
+        torch = _get_torch()
+        self.model = torch.nn.Sequential(
+            torch.nn.Linear(input_size, hidden1_size),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(dropout_rate),
+            torch.nn.Linear(hidden1_size, hidden2_size),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(dropout_rate),
+            torch.nn.Linear(hidden2_size, output_size),
+        )
+
+    def load_state_dict(self, state):
+        self.model.load_state_dict(state)
+
+    def eval(self):
+        self.model.eval()
+
 
 # ==========================================================
 #  Model Improvement Analyzer
 # ==========================================================
 class ModelImprover:
-    """Analyzes trained model and generates improvement recommendations using LLM."""
-    
-    def __init__(self, model_path, config_path="config.json", results_path=None):
-        """
-        Initialize the model improver.
-        
-        Args:
-            model_path: Path to trained model weights (.pth file)
-            config_path: Path to config.json
-            results_path: Path to results.pkl (optional)
-        """
-        self.model_path = model_path
-        self.config_path = config_path
-        
-        # Import from test.py
-        try:
-            from test import Net, OUTPUT_DIR, PATH
-            self.Net = Net
-            self.OUTPUT_DIR = OUTPUT_DIR
-            self.PATH = PATH
-            
-            self.results_path = results_path or f"{OUTPUT_DIR}/results.pkl"
-        except ImportError as e:
-            print(f"  Could not import from test.py: {e}")
-            print("   Make sure test.py is in the same directory")
-            sys.exit(1)
-        
+    """Analyzes training dynamics and generates improvement recommendations using LLM."""
+
+    def __init__(self, model_path, config_path=str(CONFIG_PATH), results_path=None):
+        self.model_path = Path(model_path)
+        self.config_path = Path(config_path)
+        self.results_path = Path(results_path) if results_path else None
+        self.OUTPUT_DIR = OUTPUT_DIR
+
         # Load config
-        with open(config_path, 'r') as f:
+        with open(self.config_path, "r") as f:
             self.config = json.load(f)
-        
-        # Load model
-        self.model = self.Net(
-            input_size=self.config['INPUT_SIZE'],
-            hidden1_size=self.config['HIDDEN1_SIZE'],
-            hidden2_size=self.config['HIDDEN2_SIZE'],
-            output_size=self.config['OUTPUT_SIZE'],
-            dropout_rate=self.config['DROPOUT_RATE']
-        )
-        self.model.load_state_dict(torch.load(model_path))
-        self.model.eval()
-        
-        # Load results
-        try:
-            with open(self.results_path, 'rb') as f:
+
+        # IMPORTANT:
+        # We do NOT load or build the model.
+        # LLM analysis is metric-driven, not weight-driven.
+        self.model = None
+
+        # Load results (optional)
+        if self.results_path and self.results_path.exists():
+            with open(self.results_path, "rb") as f:
                 self.results = pickle.load(f)
-        except FileNotFoundError:
-            print(f"  Results file not found at {self.results_path}")
+        else:
             self.results = None
+
+
     
     def generate_llm_response(self, prompt):
         """Generate response from Ollama."""
         return ask_llm(prompt, model=MODEL_NAME)
     
-    def create_architecture_prompt(self):
+    def create_architecture_cent_prompt(self):
         """Create prompt for architecture analysis with STRICT constraints."""
         
         # Get performance metrics
@@ -337,8 +350,8 @@ CRITICAL: Do NOT include markdown code fences (```). Output raw JSON only.
 CRITICAL: All values MUST be within the specified ranges or your output is INVALID.
 """
         return prompt
-    
-    def create_hyperparameter_prompt(self):
+  
+    def create_hyperparameter_cent_prompt(self):
         """Create prompt for hyperparameter analysis with STRICT constraints."""
         
         # Get training progression
@@ -444,6 +457,259 @@ CRITICAL: Use scientific notation for LEARNING_RATE (e.g., 5e-05, not 0.00005).
 """
         return prompt
     
+    def create_hyperparameter_fl_prompt(self):
+        """
+        Create prompt for FEDERATED LEARNING hyperparameter analysis.
+        Focuses on coordination dynamics, not client-side optimization.
+        """
+
+        # Expected FL metrics structure:
+        # self.results["Federated"] = {
+        #   "global_accuracy": [...],
+        #   "mean_client_accuracy": [...],
+        #   "std_client_accuracy": [...],
+        #   "min_client_accuracy": [...],
+        #   "max_client_accuracy": [...],
+        #   "participation_rate": [...]
+        # }
+
+        results = self.results or {}
+        fl = results.get("Federated", {})
+
+
+        global_acc = fl.get("global_accuracy", [])
+        mean_acc   = fl.get("mean_client_accuracy", [])
+        std_acc    = fl.get("std_client_accuracy", [])
+        min_acc    = fl.get("min_client_accuracy", [])
+        max_acc    = fl.get("max_client_accuracy", [])
+
+        def pct(x):
+            return round(x * 100, 2)
+
+        global_final = pct(global_acc[-1]) if global_acc else "N/A"
+        mean_final   = pct(mean_acc[-1]) if mean_acc else "N/A"
+        std_final    = round(std_acc[-1], 2) if std_acc else "N/A"
+        min_final    = pct(min_acc[-1]) if min_acc else "N/A"
+        max_final    = pct(max_acc[-1]) if max_acc else "N/A"
+
+        if len(global_acc) >= 3:
+            delta = pct(global_acc[-1] - global_acc[-3])
+            trend = f"improving (+{delta}%)" if delta > 0 else f"stagnant ({delta}%)"
+        else:
+            trend = "unknown"
+
+        stability = "STABLE" if isinstance(std_final, float) and std_final < 5 else "HETEROGENEOUS"
+
+        prompt = f"""
+You are a FEDERATED LEARNING systems optimization expert.
+
+This system uses standard FedAvg with server-controlled hyperparameters.
+Clients use identical optimizers and hyperparameters.
+
+===== CURRENT FL CONFIGURATION =====
+- Total clients: {self.config['NUM_CLIENTS']}
+- Communication rounds: {self.config['ROUNDS']}
+- Local epochs per client: {self.config['EPOCHS']}
+- Learning rate (client-side): {self.config['LEARNING_RATE']}
+- Aggregation: FedAvg (fixed)
+
+===== GLOBAL PERFORMANCE =====
+- Final global accuracy: {global_final}%
+- Accuracy trend (recent rounds): {trend}
+
+===== CLIENT DISTRIBUTION (LAST ROUND) =====
+- Mean client accuracy: {mean_final}%
+- Std deviation: {std_final}
+- Min client accuracy: {min_final}%
+- Max client accuracy: {max_final}%
+
+SYSTEM STABILITY ASSESSMENT: {stability}
+
+===== CRITICAL CONSTRAINTS (MUST OBEY) =====
+
+1. ABSOLUTE LIMITS (VIOLATION = INVALID):
+- local_epochs (EPOCHS): MUST be between 1 and 5 (current: {self.config['EPOCHS']})
+- ROUNDS: MUST be between 5 and 50 (current: {self.config['ROUNDS']})
+- LEARNING_RATE: MUST be between 1e-05 and 1e-03 (current: {self.config['LEARNING_RATE']})
+
+2. CHANGE MAGNITUDE RULES:
+- You may change AT MOST ONE parameter
+- Learning rate changes MUST be ≤ 30% of current value
+- If std deviation ≥ 5:
+  - Do NOT increase local_epochs
+  - Prefer LEARNING_RATE reduction or KEEP
+- If std deviation < 5:
+  - local_epochs may change by ±1
+- Do NOT increase total training cost by more than 2× overall
+
+3. FORBIDDEN ACTIONS:
+- Do NOT change batch size
+- Do NOT change model architecture
+- Do NOT change optimizer type
+- Do NOT change aggregation algorithm (FedAvg only)
+
+===== ANALYSIS TASK =====
+
+Determine whether FL performance is limited by:
+(A) insufficient local optimization
+(B) unstable aggregation due to client heterogeneity
+(C) unnecessary communication rounds
+
+Recommend the SAFEST possible adjustment.
+
+===== RESPONSE FORMAT (STRICT) =====
+
+VERDICT: [STABLE or SUBOPTIMAL]
+
+REASONING:
+[2–3 sentences focused on FL convergence, aggregation stability, and client variance]
+
+RECOMMENDATIONS:
+- local_epochs (EPOCHS): {self.config['EPOCHS']} → [new value or KEEP]
+- ROUNDS: {self.config['ROUNDS']} → [new value or KEEP]
+- LEARNING_RATE: {self.config['LEARNING_RATE']} → [new value or KEEP]
+
+CONSTRAINT CHECK:
+- local_epochs in [1,5]: [YES/NO]
+- ROUNDS in [5,50]: [YES/NO]
+- LEARNING_RATE in [1e-05, 1e-03]: [YES/NO]
+- Only one parameter changed: [YES/NO]
+- FL-safe update: [YES/NO]
+
+JSON_OUTPUT:
+{{
+  "EPOCHS": [integer 1–5 or {self.config['EPOCHS']}],
+  "ROUNDS": [integer 5–50 or {self.config['ROUNDS']}],
+  "LEARNING_RATE": [float between 1e-05 and 1e-03]
+}}
+
+CRITICAL:
+- Output RAW JSON only
+- NO markdown
+- Use scientific notation for LEARNING_RATE
+- Invalid or multiple changes invalidate the response
+"""
+        return prompt
+    def create_architecture_fl_prompt(self):
+        """
+        Create FL-safe architecture optimization prompt with STRICT constraints.
+        """
+
+        # Extract FL metrics
+        results = self.results or {}
+        fl = results.get("Federated", {})
+
+
+        global_acc = fl.get("global_accuracy", [])
+        mean_acc   = fl.get("mean_client_accuracy", [])
+        std_acc    = fl.get("std_client_accuracy", [])
+
+        final_global_acc = global_acc[-1] * 100 if global_acc else "N/A"
+        final_std = std_acc[-1] if std_acc else "N/A"
+
+        # Current architecture
+        h1 = self.config["HIDDEN1_SIZE"]
+        h2 = self.config["HIDDEN2_SIZE"]
+        input_size = self.config["INPUT_SIZE"]
+        output_size = self.config["OUTPUT_SIZE"]
+
+        # Approximate parameter count (FC network assumption)
+        current_params = (
+            input_size * h1 +
+            h1 * h2 +
+            h2 * output_size
+        )
+
+        stability = (
+            "STABLE" if isinstance(final_std, float) and final_std < 5
+            else "UNSTABLE"
+        )
+
+        prompt = f"""
+    You are a FEDERATED LEARNING neural network architect.
+
+    This system uses synchronous FedAvg.
+    Any architecture change will be applied SERVER-SIDE and broadcast to ALL clients.
+    Architecture changes are EXPENSIVE and MUST be conservative.
+
+    ===== CURRENT ARCHITECTURE =====
+    - Input features: {input_size} (FIXED)
+    - Hidden Layer 1: {h1}
+    - Hidden Layer 2: {h2}
+    - Output classes: {output_size} (FIXED)
+    - Activation: ReLU (FIXED)
+    - Estimated parameters: {current_params}
+
+    ===== FEDERATED PERFORMANCE =====
+    - Final global accuracy: {final_global_acc}%
+    - Client accuracy std (last round): {final_std}
+    - FL stability: {stability}
+
+    ===== CRITICAL CONSTRAINTS (MUST OBEY) =====
+
+    1. ABSOLUTE LIMITS (VIOLATION = INVALID):
+    - HIDDEN1_SIZE: MUST be between 32 and 256 (current: {h1})
+    - HIDDEN2_SIZE: MUST be between 64 and 512 (current: {h2})
+    - Total parameters MUST NOT exceed 150,000
+    - INPUT_SIZE and OUTPUT_SIZE are FIXED
+
+    2. FL-SPECIFIC RULES:
+    - You may change AT MOST ONE hidden layer
+    - If client std ≥ 5:
+    - DO NOT increase model size
+    - Prefer reducing HIDDEN sizes or KEEP
+    - If client std < 5:
+    - Model size increase MUST be ≤ 15%
+    - Prefer SIMPLER models if accuracy ≥ 97%
+
+    3. FORBIDDEN ACTIONS:
+    - Do NOT add layers
+    - Do NOT change activation functions
+    - Do NOT change optimizer or aggregation
+    - Do NOT suggest frequent architecture changes
+
+    ===== ANALYSIS TASK =====
+
+    Determine whether FL performance is limited by:
+    (A) under-capacity model
+    (B) excessive model complexity for heterogeneous clients
+    (C) architecture is already optimal
+
+    Recommend the SAFEST architecture adjustment.
+
+    ===== RESPONSE FORMAT (STRICT) =====
+
+    VERDICT: [KEEP or MODIFY]
+
+    REASONING:
+    [2–3 sentences focused on FL stability, client heterogeneity, and capacity]
+
+    RECOMMENDATIONS:
+    - HIDDEN1_SIZE: {h1} → [new value or KEEP]
+    - HIDDEN2_SIZE: {h2} → [new value or KEEP]
+
+    CONSTRAINT CHECK:
+    - HIDDEN1_SIZE in [32,256]: [YES/NO]
+    - HIDDEN2_SIZE in [64,512]: [YES/NO]
+    - Total params ≤ 150k: [YES/NO]
+    - Only one layer changed: [YES/NO]
+    - FL-safe update: [YES/NO]
+
+    JSON_OUTPUT:
+    {{
+    "HIDDEN1_SIZE": [integer between 32–256],
+    "HIDDEN2_SIZE": [integer between 64–512]
+    }}
+
+    CRITICAL:
+    - Output RAW JSON only
+    - NO markdown
+    - Invalid or aggressive changes invalidate the response
+    """
+
+        return prompt
+
+    
     def parse_json_from_response1(self, response):
         """Extract and validate JSON from LLM response."""
         # Remove markdown code fences if present
@@ -512,8 +778,12 @@ CRITICAL: Use scientific notation for LEARNING_RATE (e.g., 5e-05, not 0.00005).
         print("\\n" + "="*80)
         print("ARCHITECTURE ANALYSIS (Prompt 1)")
         print("="*80 + "\\n")
-        
-        prompt = self.create_architecture_prompt()
+        if self.config.get("FL", False):
+            prompt = self.create_architecture_fl_prompt()
+            print(" Using FEDERATED LEARNING hyperparameter prompt")
+        else:
+            prompt = self.create_architecture_cent_prompt()
+            print(" Using CENTRALIZED hyperparameter prompt")
         
         print(" Generating architecture recommendations...")
         print(" This may take 30-60 seconds...\\n")
@@ -541,55 +811,68 @@ CRITICAL: Use scientific notation for LEARNING_RATE (e.g., 5e-05, not 0.00005).
             return None, str(e)
     
     def analyze_hyperparameters(self):
-        """Run hyperparameter analysis with LLM."""
-        print("\\n" + "="*80)
+        """Run hyperparameter analysis with LLM (mode-aware)."""
+        print("\n" + "="*80)
         print("HYPERPARAMETER ANALYSIS (Prompt 2)")
-        print("="*80 + "\\n")
-        
-        prompt = self.create_hyperparameter_prompt()
-        
+        print("="*80 + "\n")
+
+        if self.config.get("FL", False):
+            prompt = self.create_hyperparameter_fl_prompt()
+            print(" Using FEDERATED LEARNING hyperparameter prompt")
+        else:
+            prompt = self.create_hyperparameter_cent_prompt()
+            print(" Using CENTRALIZED hyperparameter prompt")
+
         print(" Generating hyperparameter recommendations...")
-        print(" This may take 30-60 seconds...\\n")
-        
+        print(" This may take 30-60 seconds...\n")
+
         try:
             response = self.generate_llm_response(prompt)
-            
+
             print("--- LLM Response ---")
             print(response)
-            print("-------------------\\n")
-            
-            # Parse JSON
+            print("-------------------\n")
+
             recommendations = self.parse_json_from_response(response)
-            
+
             if recommendations:
                 print(" Parsed recommendations:")
                 print(json.dumps(recommendations, indent=2))
             else:
                 print("  Could not automatically parse JSON, will save full response")
-            
+
             return recommendations, response
-            
+
         except Exception as e:
             print(f" Error during hyperparameter analysis: {e}")
             return None, str(e)
+
+            
+        
     
     def generate_improved_config(self, arch_recommendations, hyperparam_recommendations):
-        """Merge recommendations and create new config with validation."""
         new_config = self.config.copy()
-        
-        # Apply architecture recommendations with validation
-        if arch_recommendations:
-            for key in ['HIDDEN1_SIZE', 'HIDDEN2_SIZE', 'DROPOUT_RATE']:
-                if key in arch_recommendations:
-                    new_config[key] = arch_recommendations[key]
-        
-        # Apply hyperparameter recommendations with validation
-        if hyperparam_recommendations:
-            for key in ['LEARNING_RATE', 'BATCH_SIZE', 'EPOCHS', 'ROUNDS']:
-                if key in hyperparam_recommendations:
-                    new_config[key] = hyperparam_recommendations[key]
-        
+
+        if not self.config.get("FL", False):
+            # Centralized
+            if arch_recommendations:
+                for key in ['HIDDEN1_SIZE', 'HIDDEN2_SIZE', 'DROPOUT_RATE']:
+                    if key in arch_recommendations:
+                        new_config[key] = arch_recommendations[key]
+
+            if hyperparam_recommendations:
+                for key in ['LEARNING_RATE', 'BATCH_SIZE', 'EPOCHS', 'ROUNDS']:
+                    if key in hyperparam_recommendations:
+                        new_config[key] = hyperparam_recommendations[key]
+        else:
+            # Federated — ONLY server-side safe params
+            if hyperparam_recommendations:
+                for key in ['EPOCHS', 'ROUNDS']:
+                    if key in hyperparam_recommendations:
+                        new_config[key] = hyperparam_recommendations[key]
+
         return new_config
+
     
     def save_results(self, arch_response, hyperparam_response, new_config):
         """Save all analysis results."""
@@ -622,7 +905,7 @@ CRITICAL: Use scientific notation for LEARNING_RATE (e.g., 5e-05, not 0.00005).
                 new_val = new_config.get(key, "N/A")
                 
                 if old_val != new_val:
-                    f.write(f"✏️  {key}:\\n")
+                    f.write(f"  {key}:\\n")
                     f.write(f"    Old: {old_val}\\n")
                     f.write(f"    New: {new_val}\\n\\n")
                 else:
@@ -704,6 +987,54 @@ CRITICAL: Use scientific notation for LEARNING_RATE (e.g., 5e-05, not 0.00005).
             print("   Please review manually and update config.json")
             
             return None
+def llm_mid_training_update(*,model_path: str,config_path: str,results_snapshot: dict,round_idx: int,trigger_round: int,allow_architecture_change: bool = True,):
+    if round_idx != trigger_round:
+        return None  # continue training normally
+    print("\n LLM mid-training checkpoint triggered")
+    if not is_ollama_installed():
+        print(" Ollama not installed, installing...")
+        install_ollama()
+    if not ensure_ollama_running():
+        raise RuntimeError("Ollama server not running")
+    if not check_model_exists(MODEL_NAME):
+        pull_model(MODEL_NAME)
+    improver = ModelImprover(
+        model_path=model_path,
+        config_path=config_path,
+        results_path=None,
+    )
+    if improver.config.get("FL", False):
+        improver.results = {
+            "Federated": results_snapshot
+        }
+    else:
+        improver.results = {
+            "Centralized": results_snapshot
+        }
+    
+    arch_cfg = None
+    arch_response = ""
+    if allow_architecture_change:
+        arch_cfg, arch_response = improver.analyze_architecture()
+        if not arch_cfg:
+            print("Architecture analysis failed or unsafe — ignoring architecture changes")
+            arch_cfg = None
+    else:
+        print("Architecture analysis DISABLED (safe default)")
+    hyper_cfg, hyper_response = improver.analyze_hyperparameters()
+    if not hyper_cfg:
+        return None
+    new_config = improver.generate_improved_config(
+        arch_recommendations=arch_cfg,
+        hyperparam_recommendations=hyper_cfg,
+    )
+    print("\n LLM Suggested Updates:")
+    for k in sorted(new_config.keys()):
+        old = improver.config.get(k)
+        new = new_config.get(k)
+        if old != new:
+            print(f"  • {k}: {old} → {new}")
+    return new_config
 
 
 # ==========================================================
@@ -785,11 +1116,9 @@ def main():
     
     print()  # Blank line
     
-    # Step 4: Determine paths
-    from test import PATH, OUTPUT_DIR
-    
-    model_path = args.model or f"{PATH}/Centralized_Final_model_Net.pth"
-    results_path = args.results or f"{OUTPUT_DIR}/results.pkl"
+    model_path = args.model or (ITERATION_MODELS_DIR / "checkpoint_stage1_round10.pth")
+    results_path = args.results or (OUTPUT_DIR / "results_stage1_for_llm.pkl")
+
     
     # Step 5: Run analysis
     try:
