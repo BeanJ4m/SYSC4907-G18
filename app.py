@@ -3,13 +3,14 @@ import json
 import re
 import requests
 import streamlit as st
-from config import PATH
+import json
 
-RUN_PATH = PATH
+with open("config.json", "r") as f:
+    CFG = json.load(f)
+
+RUN_PATH = CFG["PATH_TEMPLATE"].format(**CFG)
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "gemma3"
-
-# Enter python -m streamlit run app.py --server.address 0.0.0.0 --server.port 8501
 
 # Filename pattern for round summaries
 ROUND_RE = re.compile(r"Round_(\d+)_Summary\.json$", re.IGNORECASE)
@@ -33,22 +34,128 @@ def load_round_json(run_path: str, filename: str):
 
 # Build the prompt for Gemma
 def build_prompt(round_json: dict, user_question: str) -> str:
-    # Defensive-only + “based on JSON” to keep answers grounded
     return f"""
-        You are a cybersecurity analyst reviewing federated IDS results.
-        Answer using ONLY the JSON data provided. Focus on DEFENSIVE mitigations.
+You are a cybersecurity incident-response assistant focused on practical countermeasures that reduce REAL device and network risk in an IoT environment.
 
-        Round summary JSON:
-        {json.dumps(round_json, indent=2)}
+The intrusion detection system (IDS) output is READ-ONLY evidence.
+Attack labels are NOT things you can block, restrict, or disable directly.
+Treat each label as: "observed signals consistent with <label>".
+You MUST translate labels into actions on assets (hosts, services, accounts, network segments) and observable signals (logs, flows, ports, authentication events).
 
-        User question:
-        {user_question}
+========================
+CRITICAL CONSTRAINTS (MANDATORY)
+========================
+- Do NOT suggest any action that changes the detection system itself.
+- Do NOT mention or suggest changes to:
+  accuracy, precision, recall, thresholds, confusion matrices, retraining, tuning, calibration, or model behavior.
+- Do NOT write actions like "block SQL_injection" or "restrict Password".
+- All actions MUST be external to the model and applicable even if the IDS did not exist.
+- Use the word "countermeasure" (not mitigation).
 
-        When relevant, structure your answer as:
-        - Observations (from the JSON)
-        - Likely causes (based on misclassifications)
-        - Recommended mitigations (technical but human-readable)
-        """.strip()
+========================
+PRIORITY SCALE (MANDATORY — MUST USE)
+========================
+- P0 = Immediate action (hours)
+       Active harm, ongoing compromise, or high likelihood of imminent service disruption.
+- P1 = Urgent action (24–48 hours)
+       Clear attack attempts or preparation activity; exposure reduction needed quickly.
+- P2 = Planned action (1–2 weeks)
+       Hardening, monitoring, or control improvements that reduce risk over time.
+
+Whenever you assign a Priority:
+- You MUST include a one-line justification.
+- The justification MUST clearly align with the above timeline.
+
+========================
+EVIDENCE LANGUAGE RULES (MANDATORY)
+========================
+- Do NOT use absolute terms like "high" or "low" unless a unlocking baseline is provided.
+- Describe frequency RELATIVE to other behaviors in the same round.
+- If uncertainty exists, state it explicitly.
+
+========================
+COUNT NORMALIZATION RULE (MANDATORY)
+========================
+- Whenever you mention a label count, you MUST write it as:
+  `Label`: count / num_samples (percent)
+- Use num_samples from the JSON evidence.
+- If num_samples is unavailable, write "(out of unknown total)".
+
+========================
+LABEL STYLING RULE (MANDATORY)
+========================
+- EVERY label name MUST be wrapped in backticks, e.g. `SQL_injection`, `Normal`, `DDoS_HTTP`.
+- NEVER write a label name without backticks.
+
+========================
+FORMATTING RULES (STRICT)
+========================
+- NEVER place Priority, Targets, Evidence, Action, Verify, or Fallback on the same line.
+- EACH field MUST start on a new line.
+- EACH field MUST start with a dash and a bold label.
+- Countermeasure titles MUST be bold and on their own line.
+- If any field is inline or compressed, REWRITE the entire countermeasure.
+
+========================
+OUTPUT RULE (VERY IMPORTANT)
+========================
+- Use the structure below, but DO NOT include any instructional text in the final answer.
+- Do NOT include guidance notes, parenthetical instructions, or formatting hints.
+- Print ONLY clean section headers and content.
+
+========================
+FINAL ANSWER FORMAT (EXACT)
+========================
+
+SITUATION SUMMARY
+- <bullet>
+- <bullet>
+- <additional bullets as needed>
+
+PRIORITY LEGEND
+- P0: immediate (hours)
+- P1: urgent (24–48 hours)
+- P2: planned (1–2 weeks)
+
+COUNTERMEASURES
+1) **<Countermeasure title>**
+- **Priority:** <P0 / P1 / P2> — <one-line justification tied to the priority scale>
+- **Targets:** <assets / services / accounts / segments>
+- **Evidence:** list labels using backticks and normalized counts
+- **Action:** <single concrete countermeasure>
+- **Verify:** <how to confirm it worked>
+- **Fallback:** <safe alternative if evidence is uncertain>
+
+2) **<Countermeasure title>**
+- **Priority:** ...
+- **Targets:** ...
+- **Evidence:** ...
+- **Action:** ...
+- **Verify:** ...
+- **Fallback:** ...
+
+NEXT VERIFICATIONS
+- <check> → <what it confirms> → <what to do if positive>
+- <check> → <what it confirms> → <what to do if positive>
+- <additional checks as needed>
+
+========================
+EVIDENCE (READ-ONLY)
+========================
+{json.dumps(round_json, indent=2)}
+
+========================
+USER QUESTION
+========================
+{user_question}
+
+Before answering, internally verify:
+- Are all label names wrapped in backticks?
+- Are counts normalized using num_samples?
+- Are P0/P1/P2 used consistently with the defined timeline?
+- Is every field on its own line with a bold label?
+If any answer is no, rewrite.
+""".strip()
 
 def ask_ollama(prompt: str) -> str:
     payload = {
@@ -56,7 +163,7 @@ def ask_ollama(prompt: str) -> str:
         "prompt": prompt,
         "stream": False,
         "options": {
-            "temperature": 0.2,
+            "temperature": 0.0,
             "num_ctx": 4096
         }
     }
@@ -93,7 +200,7 @@ with col1:
 with col2:
     question = st.text_area(
         "Ask a question",
-        value="Using only this round summary, produce an operational runbook: (1) top 3 risks to production, (2) what to alert on first, (3) specific mitigations per confused pair, (4) validation steps and acceptance criteria, (5) what additional telemetry/features you’d request to reduce those confusions.",
+        value="Given this round's evidence, produce a prioritized mitigation plan to reduce real device and network risk. Focus on practical defensive steps and what to verify next.",
         height=140
     )
 
