@@ -18,9 +18,9 @@ import platform
 
 
 
-# ==========================================================
-# Hardcoded project paths (DO NOT AUTO-DETECT)
-# ==========================================================
+
+# Hardcoded project paths (DOES NOT AUTO-DETECT FEEL FREE TO CHANGE)
+
 BASE_DIR = Path("/teamspace/studios/this_studio")
 DATA_DIR = BASE_DIR / "data"
 ITERATION_MODELS_DIR = BASE_DIR / "iteration_models"
@@ -44,9 +44,7 @@ def is_ollama_installed():
     except Exception:
         return False
 
-# ==========================================================
 #  PUBLIC API FOR NOTEBOOK INTEGRATION
-# ==========================================================
 
 def _get_torch():
     import torch
@@ -58,7 +56,6 @@ def install_ollama():
     print(" Installing Ollama...")
     
     system = platform.system()
-    
     try:
         if system == "Linux":
             print("   Downloading and installing Ollama for Linux...")
@@ -247,8 +244,6 @@ class ModelImprover:
                 self.results = pickle.load(f)
         else:
             self.results = None
-
-
     
     def generate_llm_response(self, prompt):
         """Generate response from Ollama."""
@@ -1036,107 +1031,3 @@ def llm_mid_training_update(*,model_path: str,config_path: str,results_snapshot:
             print(f"  • {k}: {old} → {new}")
     return new_config
 
-
-# ==========================================================
-#  Main entry point
-# ==========================================================
-def main():
-    """Main entry point."""
-    import argparse
-    
-    parser = argparse.ArgumentParser(
-        description="Analyze trained model and generate improvements using LLM"
-    )
-    parser.add_argument(
-        "--model",
-        default=None,
-        help="Path to trained model weights (auto-detected if not specified)"
-    )
-    parser.add_argument(
-        "--config",
-        default="config.json",
-        help="Path to config file"
-    )
-    parser.add_argument(
-        "--results",
-        default=None,
-        help="Path to results pickle file (auto-detected if not specified)"
-    )
-    parser.add_argument(
-        "--model-name",
-        default="gemma2",
-        help="Ollama model name (default: gemma2)"
-    )
-    
-    args = parser.parse_args()
-    
-    # Update global MODEL_NAME
-    global MODEL_NAME
-    MODEL_NAME = args.model_name
-    
-    # Step 1: Ensure Ollama is installed
-    print("\\n" + "="*80)
-    print(" SETUP PHASE")
-    print("="*80 + "\\n")
-    
-    # Check if Ollama is installed
-    if not is_ollama_installed():
-        print("  Ollama not found. Installing...")
-        if not install_ollama():
-            print("\\n Failed to install Ollama automatically.")
-            print("\\nPlease install manually:")
-            print("  Linux: curl -fsSL https://ollama.com/install.sh | sh")
-            print("  macOS: brew install ollama")
-            print("  Or visit: https://ollama.com/download")
-            sys.exit(1)
-    else:
-        print(" Ollama is already installed.")
-    
-    # Step 2: Start Ollama server
-    try:
-        if not ensure_ollama_running():
-            print("\\n Could not start Ollama server.")
-            print("Please start manually: ollama serve")
-            sys.exit(1)
-        
-    except Exception as e:
-        print(f" Setup failed: {e}")
-        print("\\nManual setup:")
-        print("  Terminal 1: ollama serve")
-        print(f"  Terminal 2: ollama pull {MODEL_NAME}")
-        print("  Then run this script again")
-        sys.exit(1)
-    
-    # Step 3: Pull model if needed
-    if not check_model_exists(MODEL_NAME):
-        if not pull_model(MODEL_NAME):
-            print("\\n Could not pull model. Please run manually:")
-            print(f"   ollama pull {MODEL_NAME}")
-            sys.exit(1)
-    
-    print()  # Blank line
-    
-    model_path = args.model or (ITERATION_MODELS_DIR / "checkpoint_stage1_round10.pth")
-    results_path = args.results or (OUTPUT_DIR / "results_stage1_for_llm.pkl")
-
-    
-    # Step 5: Run analysis
-    try:
-        improver = ModelImprover(
-            model_path=model_path,
-            config_path=args.config,
-            results_path=results_path
-        )
-        
-        improver.run_full_analysis()
-        
-    except KeyboardInterrupt:
-        print("\\n\\n  Analysis interrupted by user")
-    except Exception as e:
-        print(f"\\n Error during analysis: {e}")
-        import traceback
-        traceback.print_exc()
-
-
-if __name__ == "__main__":
-    main()
