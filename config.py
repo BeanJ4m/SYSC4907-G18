@@ -24,5 +24,9 @@ if not os.path.isabs(PATH):
 
 globals()["PATH"] = PATH
 
+# Calculate SIZE_ROUND
+SIZE_ROUND = int(BATCH_ROUND * BATCH_SIZE * NUM_CLIENTS)
+globals()["SIZE_ROUND"] = SIZE_ROUND
+
 print(f"Configuration loaded from {config_path}")
 print(f"Results path: {PATH}")

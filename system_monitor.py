@@ -95,31 +95,25 @@ class SystemMonitor:
                     self.metrics['ram_mb'].append(ram_mb)
                     self.metrics['timestamps'].append(timestamp)
                     
-                    # GPU
+                    # GPU (required when available)
                     if self.gpu_available:
-                        try:
-                            for gpu_id in range(self.gpu_count):
-                                handle = pynvml.nvmlDeviceGetHandleByIndex(gpu_id)
-                                
-                                # Utilization
-                                util = pynvml.nvmlDeviceGetUtilizationRates(handle)
-                                self.metrics['gpu_util'].append(util.gpu)
-                                self.metrics['gpu_mem_util'].append(util.memory)
-                                
-                                # Memory
-                                mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
-                                gpu_mem_mb = mem_info.used / (1024 * 1024)
-                                self.metrics['gpu_mem_mb'].append(gpu_mem_mb)
-                                
-                                # Power (optional)
-                                try:
-                                    power_mw = pynvml.nvmlDeviceGetPowerUsage(handle)
-                                    power_w = power_mw / 1000.0
-                                    self.metrics['gpu_power'].append(power_w)
-                                except:
-                                    pass
-                        except Exception as e:
-                            pass
+                        for gpu_id in range(self.gpu_count):
+                            handle = pynvml.nvmlDeviceGetHandleByIndex(gpu_id)
+                            
+                            # Utilization (required)
+                            util = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                            self.metrics['gpu_util'].append(util.gpu)
+                            self.metrics['gpu_mem_util'].append(util.memory)
+                            
+                            # Memory (required)
+                            mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+                            gpu_mem_mb = mem_info.used / (1024 * 1024)
+                            self.metrics['gpu_mem_mb'].append(gpu_mem_mb)
+                            
+                            # Power (required)
+                            power_mw = pynvml.nvmlDeviceGetPowerUsage(handle)
+                            power_w = power_mw / 1000.0
+                            self.metrics['gpu_power'].append(power_w)
                     
                     time.sleep(self.sampling_interval)
                 except Exception as e:
