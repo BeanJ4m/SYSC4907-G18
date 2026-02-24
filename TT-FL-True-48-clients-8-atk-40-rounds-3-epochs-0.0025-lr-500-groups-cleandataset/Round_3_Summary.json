@@ -1,0 +1,92 @@
+{
+  "round": 3,
+  "num_samples": 103241,
+  "predicted_counts": {
+    "Normal": 91376,
+    "DDoS_UDP": 0,
+    "DDoS_ICMP": 0,
+    "DDoS_TCP": 0,
+    "DDoS_HTTP": 11865,
+    "Password": 0,
+    "Vulnerability_scanner": 0,
+    "SQL_injection": 0,
+    "Uploading": 0,
+    "Backdoor": 0,
+    "Port_Scanning": 0,
+    "XSS": 0,
+    "Ransomware": 0,
+    "MITM": 0,
+    "OS_Fingerprinting": 0
+  },
+  "predicted_percent": {
+    "Normal": 0.885075,
+    "DDoS_UDP": 0.0,
+    "DDoS_ICMP": 0.0,
+    "DDoS_TCP": 0.0,
+    "DDoS_HTTP": 0.114925,
+    "Password": 0.0,
+    "Vulnerability_scanner": 0.0,
+    "SQL_injection": 0.0,
+    "Uploading": 0.0,
+    "Backdoor": 0.0,
+    "Port_Scanning": 0.0,
+    "XSS": 0.0,
+    "Ransomware": 0.0,
+    "MITM": 0.0,
+    "OS_Fingerprinting": 0.0
+  },
+  "inactive_labels": [
+    "DDoS_UDP",
+    "DDoS_ICMP",
+    "DDoS_TCP",
+    "Password",
+    "Vulnerability_scanner",
+    "SQL_injection",
+    "Uploading",
+    "Backdoor",
+    "Port_Scanning",
+    "XSS",
+    "Ransomware",
+    "MITM",
+    "OS_Fingerprinting"
+  ],
+  "top_labels": [
+    {
+      "label": "Normal",
+      "count": 91376,
+      "percent": 0.8851
+    },
+    {
+      "label": "DDoS_HTTP",
+      "count": 11865,
+      "percent": 0.1149
+    }
+  ],
+  "cooccur_pairs": [
+    {
+      "from_predicted": "DDoS_HTTP",
+      "to_predicted": "Normal",
+      "count": 10478,
+      "rate": 0.8831
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "DDoS_HTTP",
+      "count": 10479,
+      "rate": 0.1147
+    }
+  ],
+  "top_cooccur_by_count": [
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "DDoS_HTTP",
+      "count": 10479
+    },
+    {
+      "from_predicted": "DDoS_HTTP",
+      "to_predicted": "Normal",
+      "count": 10478
+    }
+  ],
+  "cooccur_rate_threshold": 0.1
+}

@@ -1,0 +1,279 @@
+{
+  "round": 6,
+  "num_samples": 103241,
+  "predicted_counts": {
+    "Normal": 65054,
+    "DDoS_UDP": 7609,
+    "DDoS_ICMP": 0,
+    "DDoS_TCP": 15,
+    "DDoS_HTTP": 6550,
+    "Password": 5374,
+    "Vulnerability_scanner": 0,
+    "SQL_injection": 14501,
+    "Uploading": 4138,
+    "Backdoor": 0,
+    "Port_Scanning": 0,
+    "XSS": 0,
+    "Ransomware": 0,
+    "MITM": 0,
+    "OS_Fingerprinting": 0
+  },
+  "predicted_percent": {
+    "Normal": 0.630118,
+    "DDoS_UDP": 0.073701,
+    "DDoS_ICMP": 0.0,
+    "DDoS_TCP": 0.000145,
+    "DDoS_HTTP": 0.063444,
+    "Password": 0.052053,
+    "Vulnerability_scanner": 0.0,
+    "SQL_injection": 0.140458,
+    "Uploading": 0.040081,
+    "Backdoor": 0.0,
+    "Port_Scanning": 0.0,
+    "XSS": 0.0,
+    "Ransomware": 0.0,
+    "MITM": 0.0,
+    "OS_Fingerprinting": 0.0
+  },
+  "inactive_labels": [
+    "DDoS_ICMP",
+    "Vulnerability_scanner",
+    "Backdoor",
+    "Port_Scanning",
+    "XSS",
+    "Ransomware",
+    "MITM",
+    "OS_Fingerprinting"
+  ],
+  "top_labels": [
+    {
+      "label": "Normal",
+      "count": 65054,
+      "percent": 0.6301
+    },
+    {
+      "label": "SQL_injection",
+      "count": 14501,
+      "percent": 0.1405
+    },
+    {
+      "label": "DDoS_UDP",
+      "count": 7609,
+      "percent": 0.0737
+    },
+    {
+      "label": "DDoS_HTTP",
+      "count": 6550,
+      "percent": 0.0634
+    },
+    {
+      "label": "Password",
+      "count": 5374,
+      "percent": 0.0521
+    },
+    {
+      "label": "Uploading",
+      "count": 4138,
+      "percent": 0.0401
+    },
+    {
+      "label": "DDoS_TCP",
+      "count": 15,
+      "percent": 0.0001
+    }
+  ],
+  "cooccur_pairs": [
+    {
+      "from_predicted": "DDoS_UDP",
+      "to_predicted": "Normal",
+      "count": 4818,
+      "rate": 0.6332
+    },
+    {
+      "from_predicted": "SQL_injection",
+      "to_predicted": "Normal",
+      "count": 9159,
+      "rate": 0.6316
+    },
+    {
+      "from_predicted": "Uploading",
+      "to_predicted": "Normal",
+      "count": 2593,
+      "rate": 0.6266
+    },
+    {
+      "from_predicted": "Password",
+      "to_predicted": "Normal",
+      "count": 3361,
+      "rate": 0.6254
+    },
+    {
+      "from_predicted": "DDoS_HTTP",
+      "to_predicted": "Normal",
+      "count": 4042,
+      "rate": 0.6171
+    },
+    {
+      "from_predicted": "DDoS_TCP",
+      "to_predicted": "Normal",
+      "count": 9,
+      "rate": 0.6
+    },
+    {
+      "from_predicted": "DDoS_HTTP",
+      "to_predicted": "SQL_injection",
+      "count": 983,
+      "rate": 0.1501
+    },
+    {
+      "from_predicted": "Uploading",
+      "to_predicted": "SQL_injection",
+      "count": 619,
+      "rate": 0.1496
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "SQL_injection",
+      "count": 9080,
+      "rate": 0.1396
+    },
+    {
+      "from_predicted": "Password",
+      "to_predicted": "SQL_injection",
+      "count": 744,
+      "rate": 0.1384
+    },
+    {
+      "from_predicted": "DDoS_UDP",
+      "to_predicted": "SQL_injection",
+      "count": 1049,
+      "rate": 0.1379
+    },
+    {
+      "from_predicted": "DDoS_TCP",
+      "to_predicted": "Password",
+      "count": 2,
+      "rate": 0.1333
+    },
+    {
+      "from_predicted": "DDoS_TCP",
+      "to_predicted": "SQL_injection",
+      "count": 2,
+      "rate": 0.1333
+    },
+    {
+      "from_predicted": "DDoS_TCP",
+      "to_predicted": "DDoS_UDP",
+      "count": 2,
+      "rate": 0.1333
+    }
+  ],
+  "top_cooccur_by_count": [
+    {
+      "from_predicted": "SQL_injection",
+      "to_predicted": "Normal",
+      "count": 9159
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "SQL_injection",
+      "count": 9080
+    },
+    {
+      "from_predicted": "DDoS_UDP",
+      "to_predicted": "Normal",
+      "count": 4818
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "DDoS_UDP",
+      "count": 4788
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "DDoS_HTTP",
+      "count": 4109
+    },
+    {
+      "from_predicted": "DDoS_HTTP",
+      "to_predicted": "Normal",
+      "count": 4042
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "Password",
+      "count": 3374
+    },
+    {
+      "from_predicted": "Password",
+      "to_predicted": "Normal",
+      "count": 3361
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "Uploading",
+      "count": 2624
+    },
+    {
+      "from_predicted": "Uploading",
+      "to_predicted": "Normal",
+      "count": 2593
+    },
+    {
+      "from_predicted": "DDoS_UDP",
+      "to_predicted": "SQL_injection",
+      "count": 1049
+    },
+    {
+      "from_predicted": "SQL_injection",
+      "to_predicted": "DDoS_UDP",
+      "count": 1036
+    },
+    {
+      "from_predicted": "DDoS_HTTP",
+      "to_predicted": "SQL_injection",
+      "count": 983
+    },
+    {
+      "from_predicted": "SQL_injection",
+      "to_predicted": "DDoS_HTTP",
+      "count": 948
+    },
+    {
+      "from_predicted": "SQL_injection",
+      "to_predicted": "Password",
+      "count": 752
+    },
+    {
+      "from_predicted": "Password",
+      "to_predicted": "SQL_injection",
+      "count": 744
+    },
+    {
+      "from_predicted": "Uploading",
+      "to_predicted": "SQL_injection",
+      "count": 619
+    },
+    {
+      "from_predicted": "SQL_injection",
+      "to_predicted": "Uploading",
+      "count": 578
+    },
+    {
+      "from_predicted": "DDoS_HTTP",
+      "to_predicted": "DDoS_UDP",
+      "count": 514
+    },
+    {
+      "from_predicted": "DDoS_UDP",
+      "to_predicted": "DDoS_HTTP",
+      "count": 493
+    },
+    {
+      "from_predicted": "Password",
+      "to_predicted": "DDoS_UDP",
+      "count": 401
+    }
+  ],
+  "cooccur_rate_threshold": 0.1
+}

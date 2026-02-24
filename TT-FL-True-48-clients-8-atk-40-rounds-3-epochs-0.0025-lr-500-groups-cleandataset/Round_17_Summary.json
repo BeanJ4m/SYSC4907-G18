@@ -1,0 +1,309 @@
+{
+  "round": 17,
+  "num_samples": 103241,
+  "predicted_counts": {
+    "Normal": 49191,
+    "DDoS_UDP": 7608,
+    "DDoS_ICMP": 15984,
+    "DDoS_TCP": 7325,
+    "DDoS_HTTP": 5702,
+    "Password": 5916,
+    "Vulnerability_scanner": 7377,
+    "SQL_injection": 2966,
+    "Uploading": 1172,
+    "Backdoor": 0,
+    "Port_Scanning": 0,
+    "XSS": 0,
+    "Ransomware": 0,
+    "MITM": 0,
+    "OS_Fingerprinting": 0
+  },
+  "predicted_percent": {
+    "Normal": 0.476468,
+    "DDoS_UDP": 0.073692,
+    "DDoS_ICMP": 0.154822,
+    "DDoS_TCP": 0.07095,
+    "DDoS_HTTP": 0.05523,
+    "Password": 0.057303,
+    "Vulnerability_scanner": 0.071454,
+    "SQL_injection": 0.028729,
+    "Uploading": 0.011352,
+    "Backdoor": 0.0,
+    "Port_Scanning": 0.0,
+    "XSS": 0.0,
+    "Ransomware": 0.0,
+    "MITM": 0.0,
+    "OS_Fingerprinting": 0.0
+  },
+  "inactive_labels": [
+    "Backdoor",
+    "Port_Scanning",
+    "XSS",
+    "Ransomware",
+    "MITM",
+    "OS_Fingerprinting"
+  ],
+  "top_labels": [
+    {
+      "label": "Normal",
+      "count": 49191,
+      "percent": 0.4765
+    },
+    {
+      "label": "DDoS_ICMP",
+      "count": 15984,
+      "percent": 0.1548
+    },
+    {
+      "label": "DDoS_UDP",
+      "count": 7608,
+      "percent": 0.0737
+    },
+    {
+      "label": "Vulnerability_scanner",
+      "count": 7377,
+      "percent": 0.0715
+    },
+    {
+      "label": "DDoS_TCP",
+      "count": 7325,
+      "percent": 0.071
+    },
+    {
+      "label": "Password",
+      "count": 5916,
+      "percent": 0.0573
+    },
+    {
+      "label": "DDoS_HTTP",
+      "count": 5702,
+      "percent": 0.0552
+    },
+    {
+      "label": "SQL_injection",
+      "count": 2966,
+      "percent": 0.0287
+    },
+    {
+      "label": "Uploading",
+      "count": 1172,
+      "percent": 0.0114
+    }
+  ],
+  "cooccur_pairs": [
+    {
+      "from_predicted": "Uploading",
+      "to_predicted": "Normal",
+      "count": 580,
+      "rate": 0.4949
+    },
+    {
+      "from_predicted": "Vulnerability_scanner",
+      "to_predicted": "Normal",
+      "count": 3574,
+      "rate": 0.4845
+    },
+    {
+      "from_predicted": "Password",
+      "to_predicted": "Normal",
+      "count": 2828,
+      "rate": 0.478
+    },
+    {
+      "from_predicted": "DDoS_TCP",
+      "to_predicted": "Normal",
+      "count": 3499,
+      "rate": 0.4777
+    },
+    {
+      "from_predicted": "DDoS_ICMP",
+      "to_predicted": "Normal",
+      "count": 7598,
+      "rate": 0.4754
+    },
+    {
+      "from_predicted": "SQL_injection",
+      "to_predicted": "Normal",
+      "count": 1398,
+      "rate": 0.4713
+    },
+    {
+      "from_predicted": "DDoS_HTTP",
+      "to_predicted": "Normal",
+      "count": 2687,
+      "rate": 0.4712
+    },
+    {
+      "from_predicted": "DDoS_UDP",
+      "to_predicted": "Normal",
+      "count": 3563,
+      "rate": 0.4683
+    },
+    {
+      "from_predicted": "SQL_injection",
+      "to_predicted": "DDoS_ICMP",
+      "count": 495,
+      "rate": 0.1669
+    },
+    {
+      "from_predicted": "DDoS_HTTP",
+      "to_predicted": "DDoS_ICMP",
+      "count": 928,
+      "rate": 0.1627
+    },
+    {
+      "from_predicted": "Uploading",
+      "to_predicted": "DDoS_ICMP",
+      "count": 187,
+      "rate": 0.1596
+    },
+    {
+      "from_predicted": "DDoS_TCP",
+      "to_predicted": "DDoS_ICMP",
+      "count": 1147,
+      "rate": 0.1566
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "DDoS_ICMP",
+      "count": 7633,
+      "rate": 0.1552
+    },
+    {
+      "from_predicted": "Password",
+      "to_predicted": "DDoS_ICMP",
+      "count": 909,
+      "rate": 0.1537
+    },
+    {
+      "from_predicted": "DDoS_UDP",
+      "to_predicted": "DDoS_ICMP",
+      "count": 1145,
+      "rate": 0.1505
+    },
+    {
+      "from_predicted": "Vulnerability_scanner",
+      "to_predicted": "DDoS_ICMP",
+      "count": 1094,
+      "rate": 0.1483
+    }
+  ],
+  "top_cooccur_by_count": [
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "DDoS_ICMP",
+      "count": 7633
+    },
+    {
+      "from_predicted": "DDoS_ICMP",
+      "to_predicted": "Normal",
+      "count": 7598
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "DDoS_UDP",
+      "count": 3612
+    },
+    {
+      "from_predicted": "Vulnerability_scanner",
+      "to_predicted": "Normal",
+      "count": 3574
+    },
+    {
+      "from_predicted": "DDoS_UDP",
+      "to_predicted": "Normal",
+      "count": 3563
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "Vulnerability_scanner",
+      "count": 3501
+    },
+    {
+      "from_predicted": "DDoS_TCP",
+      "to_predicted": "Normal",
+      "count": 3499
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "DDoS_TCP",
+      "count": 3481
+    },
+    {
+      "from_predicted": "Password",
+      "to_predicted": "Normal",
+      "count": 2828
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "Password",
+      "count": 2804
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "DDoS_HTTP",
+      "count": 2707
+    },
+    {
+      "from_predicted": "DDoS_HTTP",
+      "to_predicted": "Normal",
+      "count": 2687
+    },
+    {
+      "from_predicted": "Normal",
+      "to_predicted": "SQL_injection",
+      "count": 1422
+    },
+    {
+      "from_predicted": "SQL_injection",
+      "to_predicted": "Normal",
+      "count": 1398
+    },
+    {
+      "from_predicted": "DDoS_ICMP",
+      "to_predicted": "Vulnerability_scanner",
+      "count": 1211
+    },
+    {
+      "from_predicted": "DDoS_ICMP",
+      "to_predicted": "DDoS_UDP",
+      "count": 1158
+    },
+    {
+      "from_predicted": "DDoS_TCP",
+      "to_predicted": "DDoS_ICMP",
+      "count": 1147
+    },
+    {
+      "from_predicted": "DDoS_UDP",
+      "to_predicted": "DDoS_ICMP",
+      "count": 1145
+    },
+    {
+      "from_predicted": "DDoS_ICMP",
+      "to_predicted": "DDoS_TCP",
+      "count": 1142
+    },
+    {
+      "from_predicted": "Vulnerability_scanner",
+      "to_predicted": "DDoS_ICMP",
+      "count": 1094
+    },
+    {
+      "from_predicted": "DDoS_HTTP",
+      "to_predicted": "DDoS_ICMP",
+      "count": 928
+    },
+    {
+      "from_predicted": "DDoS_ICMP",
+      "to_predicted": "Password",
+      "count": 910
+    },
+    {
+      "from_predicted": "Password",
+      "to_predicted": "DDoS_ICMP",
+      "count": 909
+    }
+  ],
+  "cooccur_rate_threshold": 0.1
+}

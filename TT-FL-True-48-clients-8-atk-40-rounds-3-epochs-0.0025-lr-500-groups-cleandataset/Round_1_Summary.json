@@ -1,0 +1,64 @@
+{
+  "round": 1,
+  "num_samples": 103241,
+  "predicted_counts": {
+    "Normal": 103241,
+    "DDoS_UDP": 0,
+    "DDoS_ICMP": 0,
+    "DDoS_TCP": 0,
+    "DDoS_HTTP": 0,
+    "Password": 0,
+    "Vulnerability_scanner": 0,
+    "SQL_injection": 0,
+    "Uploading": 0,
+    "Backdoor": 0,
+    "Port_Scanning": 0,
+    "XSS": 0,
+    "Ransomware": 0,
+    "MITM": 0,
+    "OS_Fingerprinting": 0
+  },
+  "predicted_percent": {
+    "Normal": 1.0,
+    "DDoS_UDP": 0.0,
+    "DDoS_ICMP": 0.0,
+    "DDoS_TCP": 0.0,
+    "DDoS_HTTP": 0.0,
+    "Password": 0.0,
+    "Vulnerability_scanner": 0.0,
+    "SQL_injection": 0.0,
+    "Uploading": 0.0,
+    "Backdoor": 0.0,
+    "Port_Scanning": 0.0,
+    "XSS": 0.0,
+    "Ransomware": 0.0,
+    "MITM": 0.0,
+    "OS_Fingerprinting": 0.0
+  },
+  "inactive_labels": [
+    "DDoS_UDP",
+    "DDoS_ICMP",
+    "DDoS_TCP",
+    "DDoS_HTTP",
+    "Password",
+    "Vulnerability_scanner",
+    "SQL_injection",
+    "Uploading",
+    "Backdoor",
+    "Port_Scanning",
+    "XSS",
+    "Ransomware",
+    "MITM",
+    "OS_Fingerprinting"
+  ],
+  "top_labels": [
+    {
+      "label": "Normal",
+      "count": 103241,
+      "percent": 1.0
+    }
+  ],
+  "cooccur_pairs": [],
+  "top_cooccur_by_count": [],
+  "cooccur_rate_threshold": 0.1
+}
