@@ -8,7 +8,7 @@
   "BATCH_ROUND": 6,
   "NUM_ATCKS": 14,
   "FL": true,
-  "MODE": "DNN",
+  "MODE": "TT",
   "G": 0,
   "LLM_TRIGGER_ROUND": 2,
   "INPUT_SIZE": 98,

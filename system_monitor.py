@@ -26,12 +26,16 @@ except ImportError:
 class SystemMonitor:
     """Background system resource monitor."""
     
-    def __init__(self, sampling_interval: float = 1.0):
+    def __init__(self, sampling_interval: float = 1.0, fl_mode: Optional[bool] = None, llm_mode: Optional[bool] = None):
         """
         Args:
             sampling_interval: Time between samples in seconds (default 1.0)
+            fl_mode: Boolean indicating if Federated Learning is enabled (optional)
+            llm_mode: Boolean indicating if LLM is enabled (optional)
         """
         self.sampling_interval = sampling_interval
+        self.fl_mode = fl_mode
+        self.llm_mode = llm_mode
         self.stop_flag = False
         self.thread = None
         
@@ -172,20 +176,32 @@ class SystemMonitor:
         stats = self.get_stats()
         report = {
             'timestamp': datetime.now().isoformat(),
+            'fl_mode': self.fl_mode,
+            'llm_mode': self.llm_mode,
             'system_resources': stats,
         }
         
         with open(output_path, 'w') as f:
             json.dump(report, f, indent=2)
         print(f"[Monitor] Report saved: {output_path}")
-        self.print_summary(stats)
+        self.print_summary(stats, self.fl_mode, self.llm_mode)
     
     @staticmethod
-    def print_summary(stats: Dict):
+    def print_summary(stats: Dict, fl_mode: Optional[bool] = None, llm_mode: Optional[bool] = None):
         """Print a summary of resource usage."""
         print("\n" + "=" * 70)
         print("SYSTEM RESOURCE SUMMARY")
         print("=" * 70)
+        
+        # Training Mode
+        if fl_mode is not None:
+            mode_str = "Federated Learning (FL)" if fl_mode else "Centralized Learning"
+            print(f"\n📊 Training Mode: {mode_str}")
+        
+        # LLM Mode
+        if llm_mode is not None:
+            llm_str = "Enabled" if llm_mode else "Disabled"
+            print(f"🤖 LLM Mode: {llm_str}")
         
         # Training Time (if available)
         if 'training_time' in stats:

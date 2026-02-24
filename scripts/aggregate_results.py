@@ -109,6 +109,13 @@ def aggregate_folder(path):
     sys_path = os.path.join(path, 'system_resources.json')
     sysdata = read_json(sys_path) if os.path.exists(sys_path) else None
 
+    # extract FL and LLM modes from system resources
+    fl_mode = None
+    llm_mode = None
+    if sysdata and isinstance(sysdata, dict):
+        fl_mode = sysdata.get('fl_mode')
+        llm_mode = sysdata.get('llm_mode')
+
     # model size: pick the largest GlobalModel_*.pth if present
     model_size_kb = None
     try:
@@ -161,6 +168,32 @@ def aggregate_folder(path):
             'Max': '',
             'Average': '',
             'Final': plateau
+        })
+
+    # FL Mode
+    if fl_mode is not None:
+        fl_str = 'Yes' if fl_mode else 'No'
+        results.append({
+            'Attacks': attacks,
+            'Model': model,
+            'Metric': 'FL_Mode',
+            'Min': '',
+            'Max': '',
+            'Average': '',
+            'Final': fl_str
+        })
+
+    # LLM Mode
+    if llm_mode is not None:
+        llm_str = 'Yes' if llm_mode else 'No'
+        results.append({
+            'Attacks': attacks,
+            'Model': model,
+            'Metric': 'LLM_Mode',
+            'Min': '',
+            'Max': '',
+            'Average': '',
+            'Final': llm_str
         })
 
     # Macro averages: F1, Precision, Recall
