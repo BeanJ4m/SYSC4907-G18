@@ -1050,7 +1050,7 @@ CRITICAL: Use scientific notation for LEARNING_RATE (e.g., 5e-05, not 0.00005).
             print("   Please review manually and update config.json")
             
             return None
-def llm_mid_training_update(*,model_path: str,config_path: str,results_snapshot: dict,round_idx: int,trigger_round: int,allow_architecture_change: bool = True,):
+def llm_mid_training_update(*,model_path: str,config_path: str,results_snapshot: dict,round_idx: int,trigger_round: int,allow_architecture_change: bool = False,):
     if round_idx != trigger_round:
         return None  # continue training normally
     print("\n LLM mid-training checkpoint triggered")
