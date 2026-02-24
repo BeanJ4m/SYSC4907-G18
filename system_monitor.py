@@ -35,6 +35,10 @@ class SystemMonitor:
         self.stop_flag = False
         self.thread = None
         
+        # Timing metrics
+        self.start_time = None
+        self.stop_time = None
+        
         # Storage for metrics
         self.metrics = {
             'cpu_percent': [],
@@ -64,7 +68,8 @@ class SystemMonitor:
         if not PSUTIL_AVAILABLE:
             print("[Monitor] psutil not available, skipping CPU/RAM monitoring")
             return
-            
+        
+        self.start_time = time.time()
         self.stop_flag = False
         self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.thread.start()
@@ -72,6 +77,7 @@ class SystemMonitor:
     
     def stop(self):
         """Stop background monitoring."""
+        self.stop_time = time.time()
         self.stop_flag = True
         if self.thread:
             self.thread.join(timeout=5)
@@ -133,11 +139,24 @@ class SystemMonitor:
                 'count': len(values)
             }
         
+        # Calculate training duration
+        duration = None
+        if self.start_time and self.stop_time:
+            duration = self.stop_time - self.start_time
+        
         stats = {
             'cpu_percent': calc_stats(self.metrics['cpu_percent']),
             'ram_percent': calc_stats(self.metrics['ram_percent']),
             'ram_mb': calc_stats(self.metrics['ram_mb']),
         }
+        
+        if duration is not None:
+            minutes = duration / 60.0
+            stats['training_time'] = {
+                'seconds': float(round(duration, 2)),
+                'minutes': float(round(minutes, 2)),
+                'hours': float(round(minutes / 60.0, 2))
+            }
         
         if self.gpu_available:
             stats['gpu_util'] = calc_stats(self.metrics['gpu_util'])
@@ -167,6 +186,12 @@ class SystemMonitor:
         print("\n" + "=" * 70)
         print("SYSTEM RESOURCE SUMMARY")
         print("=" * 70)
+        
+        # Training Time (if available)
+        if 'training_time' in stats:
+            training = stats['training_time']
+            print(f"\n⏱️  Training Time:")
+            print(f"  Duration: {training['seconds']:.2f}s ({training['minutes']:.2f}m / {training['hours']:.2f}h)")
         
         cpu = stats.get('cpu_percent', {})
         print(f"\nCPU Usage:")

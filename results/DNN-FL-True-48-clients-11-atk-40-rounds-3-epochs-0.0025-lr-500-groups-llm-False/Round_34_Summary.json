@@ -1,0 +1,624 @@
+{
+  "round": 34,
+  "num_samples": 120000,
+  "accuracy": 0.82565,
+  "loss": 0.005554302288591862,
+  "class_distribution": {
+    "Normal": 60006,
+    "DDoS_UDP": 5454,
+    "DDoS_ICMP": 5454,
+    "DDoS_TCP": 5454,
+    "DDoS_HTTP": 5454,
+    "Password": 5454,
+    "Vulnerability_scanner": 5454,
+    "SQL_injection": 5454,
+    "Uploading": 5454,
+    "Backdoor": 5454,
+    "Port_Scanning": 5454,
+    "XSS": 5454,
+    "Ransomware": 0,
+    "MITM": 0,
+    "OS_Fingerprinting": 0
+  },
+  "inactive_classes": [
+    "Ransomware",
+    "MITM",
+    "OS_Fingerprinting"
+  ],
+  "summary_metrics": {
+    "accuracy": 0.82565,
+    "macro_avg": {
+      "precision": 0.5534079761353261,
+      "recall": 0.5448167150037228,
+      "f1": 0.542872686002385,
+      "support": 120000
+    },
+    "weighted_avg": {
+      "precision": 0.8318858877302586,
+      "recall": 0.82565,
+      "f1": 0.8245139770145146,
+      "support": 120000
+    }
+  },
+  "per_class_metrics": {
+    "Normal": {
+      "precision": 1.0,
+      "recall": 0.9991667499916675,
+      "f1": 0.9995832013470932,
+      "support": 60006
+    },
+    "DDoS_UDP": {
+      "precision": 0.6059105678477488,
+      "recall": 0.718005133846718,
+      "f1": 0.6572123856675338,
+      "support": 5454
+    },
+    "DDoS_ICMP": {
+      "precision": 0.44583901773533424,
+      "recall": 0.2995966263292996,
+      "f1": 0.3583726285776949,
+      "support": 5454
+    },
+    "DDoS_TCP": {
+      "precision": 0.9256492955355627,
+      "recall": 0.9998166483314999,
+      "f1": 0.9613045394446893,
+      "support": 5454
+    },
+    "DDoS_HTTP": {
+      "precision": 0.8411788784281621,
+      "recall": 0.7535753575357536,
+      "f1": 0.7949709864603481,
+      "support": 5454
+    },
+    "Password": {
+      "precision": 0.5017779533781114,
+      "recall": 0.4657132379904657,
+      "f1": 0.48307341194370484,
+      "support": 5454
+    },
+    "Vulnerability_scanner": {
+      "precision": 0.9994401940660571,
+      "recall": 0.982031536486982,
+      "f1": 0.9906593914732267,
+      "support": 5454
+    },
+    "SQL_injection": {
+      "precision": 0.3719437652811736,
+      "recall": 0.6694169416941694,
+      "f1": 0.4781925343811395,
+      "support": 5454
+    },
+    "Uploading": {
+      "precision": 0.6288600288600289,
+      "recall": 0.39952328566189954,
+      "f1": 0.48861980042605674,
+      "support": 5454
+    },
+    "Backdoor": {
+      "precision": 0.9026827012025902,
+      "recall": 0.8945727906123946,
+      "f1": 0.8986094483838291,
+      "support": 5454
+    },
+    "Port_Scanning": {
+      "precision": 0.5726907630522088,
+      "recall": 0.5229189585625229,
+      "f1": 0.5466743339083765,
+      "support": 5454
+    },
+    "XSS": {
+      "precision": 0.5051464766429137,
+      "recall": 0.4679134580124679,
+      "f1": 0.4858176280220826,
+      "support": 5454
+    },
+    "Ransomware": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0
+    },
+    "MITM": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0
+    },
+    "OS_Fingerprinting": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 0
+    }
+  },
+  "top_attack_types": [
+    {
+      "attack": "SQL_injection",
+      "count": 5454
+    },
+    {
+      "attack": "Vulnerability_scanner",
+      "count": 5454
+    },
+    {
+      "attack": "Password",
+      "count": 5454
+    },
+    {
+      "attack": "Uploading",
+      "count": 5454
+    },
+    {
+      "attack": "DDoS_HTTP",
+      "count": 5454
+    },
+    {
+      "attack": "DDoS_TCP",
+      "count": 5454
+    },
+    {
+      "attack": "DDoS_UDP",
+      "count": 5454
+    },
+    {
+      "attack": "DDoS_ICMP",
+      "count": 5454
+    },
+    {
+      "attack": "XSS",
+      "count": 5454
+    },
+    {
+      "attack": "Port_Scanning",
+      "count": 5454
+    },
+    {
+      "attack": "Backdoor",
+      "count": 5454
+    }
+  ],
+  "top_confusions": [
+    {
+      "actual": "DDoS_ICMP",
+      "predicted": "SQL_injection",
+      "count": 3109
+    },
+    {
+      "actual": "Uploading",
+      "predicted": "SQL_injection",
+      "count": 2509
+    },
+    {
+      "actual": "Port_Scanning",
+      "predicted": "DDoS_UDP",
+      "count": 2415
+    },
+    {
+      "actual": "XSS",
+      "predicted": "Password",
+      "count": 2180
+    },
+    {
+      "actual": "Password",
+      "predicted": "XSS",
+      "count": 2082
+    },
+    {
+      "actual": "DDoS_UDP",
+      "predicted": "Port_Scanning",
+      "count": 1538
+    },
+    {
+      "actual": "SQL_injection",
+      "predicted": "DDoS_ICMP",
+      "count": 1242
+    },
+    {
+      "actual": "Uploading",
+      "predicted": "DDoS_ICMP",
+      "count": 766
+    },
+    {
+      "actual": "XSS",
+      "predicted": "DDoS_HTTP",
+      "count": 722
+    },
+    {
+      "actual": "DDoS_ICMP",
+      "predicted": "Uploading",
+      "count": 711
+    },
+    {
+      "actual": "SQL_injection",
+      "predicted": "Uploading",
+      "count": 561
+    },
+    {
+      "actual": "DDoS_HTTP",
+      "predicted": "SQL_injection",
+      "count": 547
+    },
+    {
+      "actual": "Password",
+      "predicted": "Backdoor",
+      "count": 526
+    }
+  ],
+  "problematic_confusions": [
+    {
+      "actual": "DDoS_ICMP",
+      "predicted": "SQL_injection",
+      "count": 3109,
+      "rate": 0.57
+    },
+    {
+      "actual": "Uploading",
+      "predicted": "SQL_injection",
+      "count": 2509,
+      "rate": 0.46
+    },
+    {
+      "actual": "Port_Scanning",
+      "predicted": "DDoS_UDP",
+      "count": 2415,
+      "rate": 0.4428
+    },
+    {
+      "actual": "XSS",
+      "predicted": "Password",
+      "count": 2180,
+      "rate": 0.3997
+    },
+    {
+      "actual": "Password",
+      "predicted": "XSS",
+      "count": 2082,
+      "rate": 0.3817
+    },
+    {
+      "actual": "DDoS_UDP",
+      "predicted": "Port_Scanning",
+      "count": 1538,
+      "rate": 0.282
+    },
+    {
+      "actual": "SQL_injection",
+      "predicted": "DDoS_ICMP",
+      "count": 1242,
+      "rate": 0.2277
+    },
+    {
+      "actual": "Uploading",
+      "predicted": "DDoS_ICMP",
+      "count": 766,
+      "rate": 0.1404
+    },
+    {
+      "actual": "XSS",
+      "predicted": "DDoS_HTTP",
+      "count": 722,
+      "rate": 0.1324
+    },
+    {
+      "actual": "DDoS_ICMP",
+      "predicted": "Uploading",
+      "count": 711,
+      "rate": 0.1304
+    },
+    {
+      "actual": "SQL_injection",
+      "predicted": "Uploading",
+      "count": 561,
+      "rate": 0.1029
+    },
+    {
+      "actual": "DDoS_HTTP",
+      "predicted": "SQL_injection",
+      "count": 547,
+      "rate": 0.1003
+    }
+  ],
+  "confusion_matrix": {
+    "labels": [
+      "Normal",
+      "DDoS_UDP",
+      "DDoS_ICMP",
+      "DDoS_TCP",
+      "DDoS_HTTP",
+      "Password",
+      "Vulnerability_scanner",
+      "SQL_injection",
+      "Uploading",
+      "Backdoor",
+      "Port_Scanning",
+      "XSS",
+      "Ransomware",
+      "MITM",
+      "OS_Fingerprinting"
+    ],
+    "matrix": [
+      [
+        59956,
+        0,
+        0,
+        20,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        30,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        3916,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1538,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        1634,
+        0,
+        0,
+        0,
+        0,
+        3109,
+        711,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        5453,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        23,
+        0,
+        4110,
+        342,
+        0,
+        547,
+        14,
+        0,
+        0,
+        418,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        13,
+        54,
+        2540,
+        3,
+        0,
+        0,
+        526,
+        236,
+        2082,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        98,
+        0,
+        0,
+        5356,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        1242,
+        0,
+        0,
+        0,
+        0,
+        3651,
+        561,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        766,
+        0,
+        0,
+        0,
+        0,
+        2509,
+        2179,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        132,
+        0,
+        120,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4879,
+        323,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        2415,
+        0,
+        187,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2852,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        722,
+        2180,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2552,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ]
+  },
+  "risk_flags": {
+    "low_recall_classes": [
+      "DDoS_UDP",
+      "DDoS_ICMP",
+      "DDoS_HTTP",
+      "Password",
+      "SQL_injection",
+      "Uploading",
+      "Port_Scanning",
+      "XSS"
+    ],
+    "low_precision_classes": [
+      "DDoS_UDP",
+      "DDoS_ICMP",
+      "Password",
+      "SQL_injection",
+      "Uploading",
+      "Port_Scanning",
+      "XSS"
+    ],
+    "thresholds": {
+      "confusion_rate_threshold": 0.1,
+      "recall_risk_threshold": 0.8,
+      "precision_risk_threshold": 0.8
+    }
+  }
+}

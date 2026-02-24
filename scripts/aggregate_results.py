@@ -20,14 +20,15 @@ def parse_folder_name(name: str):
         model = 'DNN'
 
     attacks = None
-    m = re.search(r'[-_]atk[-_](\d+)', name, re.IGNORECASE)
-    if m:
-        attacks = int(m.group(1))
+    # try number before 'atk' first (e.g. '...-5-atk-...')
+    m_pre = re.search(r'([0-9]+)[-_]atk', name, re.IGNORECASE)
+    if m_pre:
+        attacks = int(m_pre.group(1))
     else:
-        # try alternative patterns
-        m2 = re.search(r'atk(\d+)', name)
-        if m2:
-            attacks = int(m2.group(1))
+        # fallback to number after 'atk' (e.g. '...-atk-5-...')
+        m_post = re.search(r'[-_]atk[-_]?([0-9]+)', name, re.IGNORECASE)
+        if m_post:
+            attacks = int(m_post.group(1))
 
     return model, attacks
 
@@ -147,10 +148,20 @@ def aggregate_folder(path):
         'Min': a_min,
         'Max': a_max,
         'Average': a_avg,
-        'Final': final_acc,
-        'Plateau Round': plateau,
-        'Time': ''
+        'Final': final_acc
     })
+    
+    # Plateau Round (as a metric)
+    if plateau:
+        results.append({
+            'Attacks': attacks,
+            'Model': model,
+            'Metric': 'Plateau_Round',
+            'Min': '',
+            'Max': '',
+            'Average': '',
+            'Final': plateau
+        })
 
     # Macro averages: F1, Precision, Recall
     mf_min, mf_max, mf_avg = stats(macro_f1s)
@@ -161,9 +172,7 @@ def aggregate_folder(path):
         'Min': mf_min,
         'Max': mf_max,
         'Average': mf_avg,
-        'Final': (macro_f1s[-1] if macro_f1s else ''),
-        'Plateau Round': '',
-        'Time': ''
+        'Final': (macro_f1s[-1] if macro_f1s else '')
     })
     mp_min, mp_max, mp_avg = stats(macro_precs)
     results.append({
@@ -173,9 +182,7 @@ def aggregate_folder(path):
         'Min': mp_min,
         'Max': mp_max,
         'Average': mp_avg,
-        'Final': (macro_precs[-1] if macro_precs else ''),
-        'Plateau Round': '',
-        'Time': ''
+        'Final': (macro_precs[-1] if macro_precs else '')
     })
     mr_min, mr_max, mr_avg = stats(macro_recs)
     results.append({
@@ -185,9 +192,7 @@ def aggregate_folder(path):
         'Min': mr_min,
         'Max': mr_max,
         'Average': mr_avg,
-        'Final': (macro_recs[-1] if macro_recs else ''),
-        'Plateau Round': '',
-        'Time': ''
+        'Final': (macro_recs[-1] if macro_recs else '')
     })
 
     # Weighted averages: F1, Precision, Recall
@@ -199,9 +204,7 @@ def aggregate_folder(path):
         'Min': wf_min,
         'Max': wf_max,
         'Average': wf_avg,
-        'Final': (weighted_f1s[-1] if weighted_f1s else ''),
-        'Plateau Round': '',
-        'Time': ''
+        'Final': (weighted_f1s[-1] if weighted_f1s else '')
     })
     wp_min, wp_max, wp_avg = stats(weighted_precs)
     results.append({
@@ -211,9 +214,7 @@ def aggregate_folder(path):
         'Min': wp_min,
         'Max': wp_max,
         'Average': wp_avg,
-        'Final': (weighted_precs[-1] if weighted_precs else ''),
-        'Plateau Round': '',
-        'Time': ''
+        'Final': (weighted_precs[-1] if weighted_precs else '')
     })
     wr_min, wr_max, wr_avg = stats(weighted_recs)
     results.append({
@@ -223,9 +224,7 @@ def aggregate_folder(path):
         'Min': wr_min,
         'Max': wr_max,
         'Average': wr_avg,
-        'Final': (weighted_recs[-1] if weighted_recs else ''),
-        'Plateau Round': '',
-        'Time': ''
+        'Final': (weighted_recs[-1] if weighted_recs else '')
     })
 
     # system resources metrics
@@ -234,16 +233,14 @@ def aggregate_folder(path):
         cpu = sr.get('cpu_percent', {})
         if cpu:
             results.append({
-                'Attacks': attacks,
-                'Model': model,
-                'Metric': 'CPU_Train_Util_%',
-                'Min': cpu.get('min',''),
-                'Max': cpu.get('max',''),
-                'Average': cpu.get('avg',''),
-                'Final': '',
-                'Plateau Round': '',
-                'Time': hhmmss_from_human(sysdata.get('time',''))
-            })
+                    'Attacks': attacks,
+                    'Model': model,
+                    'Metric': 'CPU_Train_Util_%',
+                    'Min': cpu.get('min',''),
+                    'Max': cpu.get('max',''),
+                    'Average': cpu.get('avg',''),
+                    'Final': ''
+                })
 
         ram = sr.get('ram_mb', {})
         if ram:
@@ -254,9 +251,7 @@ def aggregate_folder(path):
                 'Min': ram.get('min',''),
                 'Max': ram.get('max',''),
                 'Average': ram.get('avg',''),
-                'Final': '',
-                'Plateau Round': '',
-                'Time': hhmmss_from_human(sysdata.get('time',''))
+                'Final': ''
             })
 
         gpu = sr.get('gpu_util', {})
@@ -268,9 +263,7 @@ def aggregate_folder(path):
                 'Min': gpu.get('min',''),
                 'Max': gpu.get('max',''),
                 'Average': gpu.get('avg',''),
-                'Final': '',
-                'Plateau Round': '',
-                'Time': hhmmss_from_human(sysdata.get('time',''))
+                'Final': ''
             })
 
         gpupower = sr.get('gpu_power_w', {})
@@ -282,9 +275,7 @@ def aggregate_folder(path):
                 'Min': gpupower.get('min',''),
                 'Max': gpupower.get('max',''),
                 'Average': gpupower.get('avg',''),
-                'Final': '',
-                'Plateau Round': '',
-                'Time': hhmmss_from_human(sysdata.get('time',''))
+                'Final': ''
             })
 
         gpumem = sr.get('gpu_mem_mb', {}) or sr.get('gpu_mem_util', {})
@@ -297,24 +288,34 @@ def aggregate_folder(path):
                 'Min': gpumem.get('min',''),
                 'Max': gpumem.get('max',''),
                 'Average': gpumem.get('avg',''),
-                'Final': '',
-                'Plateau Round': '',
-                'Time': hhmmss_from_human(sysdata.get('time',''))
+                'Final': ''
             })
 
-        # Train time: place in Final column for metric Train_Time_min
-        tstr = hhmmss_from_human(sysdata.get('time',''))
+        # Train time: prefer explicit 'time' field; else try to approximate
+        tstr = ''
+        if isinstance(sysdata, dict) and 'time' in sysdata:
+            tstr = hhmmss_from_human(sysdata.get('time',''))
+        # fallback: if we have many GlobalModel_*.pth files, use their mtimes
+        if not tstr:
+            gp_files = [os.path.join(path, fn) for fn in os.listdir(path) if fn.startswith('GlobalModel') and fn.endswith('.pth')]
+            if gp_files:
+                try:
+                    mtimes = [os.path.getmtime(f) for f in gp_files]
+                    span = max(mtimes) - min(mtimes)
+                    if span > 0:
+                        tstr = str(timedelta(seconds=int(span)))
+                except Exception:
+                    tstr = ''
+
         if tstr:
             results.append({
                 'Attacks': attacks,
                 'Model': model,
-                'Metric': 'Train_Time_min',
+                'Metric': 'Train_Time',
                 'Min': '',
                 'Max': '',
                 'Average': '',
-                'Final': tstr,
-                'Plateau Round': '',
-                'Time': ''
+                'Final': tstr
             })
 
     # Model size
@@ -326,9 +327,7 @@ def aggregate_folder(path):
             'Min': '',
             'Max': '',
             'Average': '',
-            'Final': round(model_size_kb, 1),
-            'Plateau Round': '',
-            'Time': ''
+            'Final': round(model_size_kb, 1)
         })
 
     return results
@@ -351,8 +350,8 @@ def main():
             continue
         rows.extend(aggregate_folder(folder))
 
-    # write CSV
-    fieldnames = ['Attacks','Model','Metric','Min','Max','Average','Final','Plateau Round','Time']
+    # write CSV (no separate Time column; time is a metric row)
+    fieldnames = ['Attacks','Model','Metric','Min','Max','Average','Final']
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
