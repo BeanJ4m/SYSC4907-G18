@@ -9,15 +9,15 @@
   "NUM_ATCKS": 11,
   "FL": true,
   "MODE": "TT",
-  "TRAIN":true,
+  "TRAIN":false,
   "G": 0,
   "LLM_TRIGGER_ROUND": 10,
   "INPUT_SIZE": 98,
   "HIDDEN1_SIZE": 64,
   "HIDDEN2_SIZE": 128,
   "LLM":false,
-  "EMB_DIM":32,
-  "MLP_DIM":64,
+  "EMB_DIM":56,
+  "MLP_DIM":112,
   "DATA_DIR": "/teamspace/studios/this_studio/data",
   "PATH_TEMPLATE": "results/{MODE}-FL-{FL}-{NUM_CLIENTS}-clients-{NUM_ATCKS}-atk-{ROUNDS}-rounds-{EPOCHS}-epochs-{LEARNING_RATE}-lr-{DATA_GROUPS}-groups-llm-{LLM}"
 }
