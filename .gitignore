@@ -6,6 +6,7 @@
 
 # Keep all Jupyter notebooks in root
 !*.ipynb
+!*.py
 
 # Keep the data folder and all contents
 !data/
