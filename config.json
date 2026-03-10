@@ -1,6 +1,6 @@
 {
   "NUM_CLIENTS": 48,
-  "ROUNDS": 10,
+  "ROUNDS": 40,
   "BATCH_SIZE": 64,
   "LEARNING_RATE": 0.0012,
   "EPOCHS": 2,
@@ -9,17 +9,16 @@
   "NUM_ATCKS": 11,
   "FL": true,
   "MODE": "TT",
+  "TRAIN":false,
   "G": 0,
-  "LLM_TRIGGER_ROUND": 2,
+  "LLM_TRIGGER_ROUND": 10,
   "INPUT_SIZE": 98,
   "HIDDEN1_SIZE": 64,
   "HIDDEN2_SIZE": 128,
-  "LLM":true,
-  "EMB_DIM":32,
-  "MLP_DIM":64,
-
+  "LLM":false,
+  "EMB_DIM":56,
+  "MLP_DIM":112,
   "DATA_DIR": "/teamspace/studios/this_studio/data",
-
   "PATH_TEMPLATE": "results/{MODE}-FL-{FL}-{NUM_CLIENTS}-clients-{NUM_ATCKS}-atk-{ROUNDS}-rounds-{EPOCHS}-epochs-{LEARNING_RATE}-lr-{DATA_GROUPS}-groups-llm-{LLM}"
 }
 
