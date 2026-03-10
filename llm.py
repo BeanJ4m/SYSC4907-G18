@@ -571,11 +571,15 @@ CRITICAL: Use scientific notation for LEARNING_RATE (e.g., 5e-05, not 0.00005).
     - Output classes: {output_size} (FIXED)
     - Attention blocks: FIXED
     - Estimated parameters: ~{current_params}
+
     ===== FEDERATED PERFORMANCE =====
     - Final global accuracy: {final_global_acc}%
     - Client accuracy std (last round): {final_std}
     - FL stability assessment: {stability}
     ===== CRITICAL CONSTRAINTS (MUST OBEY) =====
+
+    ===== CRITICAL CONSTRAINTS (MUST OBEY) =====
+
     1. ABSOLUTE LIMITS:
     - EMB_DIM MUST be between 16 and 64 (current: {emb_dim})
     - MLP_DIM MUST be between 32 and 128 (current: {mlp_dim})
