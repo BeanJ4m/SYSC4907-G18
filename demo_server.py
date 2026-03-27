@@ -1,64 +1,37 @@
 #!/usr/bin/env python3
-"""
-Federated training server for the IoT IDS demo.
-
-Features
-- Flower FedAvg server
-- DNN / TabTransformer model selection from config.json
-- Optional LLM mid-training update through llm.py
-- System monitoring through system_monitor.py
-- Benchmark logging through benchmark.py
-- Server-side evaluation and checkpoint saving
-
-Expected client behavior
-- Flower NumPyClient compatible
-- Uses server config keys: current_round, local_epochs, learning_rate, batch_size, mode
-- Returns num_examples and may optionally return metrics such as train_accuracy / train_loss
-"""
-
 from __future__ import annotations
 
 import argparse
 import copy
-import csv
 import json
-import math
-import os
 import pickle
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import flwr as fl
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
+from sklearn.metrics import precision_score, recall_score, f1_score
+from torch.utils.data import DataLoader
 
-from benchmark import BenchmarkLogger
-from demo_data_stage import prepare_notebook_data, build_eval_loader
-from llm import llm_mid_training_update
-from system_monitor import SystemMonitor
+from demo_data_stage import build_eval_loader, prepare_notebook_data
+
+try:
+    from system_monitor import SystemMonitor
+except Exception:
+    SystemMonitor = None  # type: ignore
 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-class ClassifierDataset(Dataset):
-    def __init__(self, x_data: np.ndarray, y_data: np.ndarray) -> None:
-        self.x_data = torch.from_numpy(x_data).float()
-        self.y_data = torch.from_numpy(y_data).long()
-
-    def __getitem__(self, index: int):
-        return self.x_data[index], self.y_data[index]
-
-    def __len__(self) -> int:
-        return len(self.x_data)
-
+# ============================================================
+# MODELS
+# ============================================================
 
 class DNNNet(nn.Module):
     def __init__(
@@ -132,56 +105,6 @@ class TabTransformer(nn.Module):
         return self.output_head(pooled)
 
 
-@dataclass
-class RuntimeState:
-    cfg: Dict[str, Any]
-    eval_loader: DataLoader
-    feature_count: int
-    output_dir: Path
-    config_path: Path
-    model_dir: Path
-    benchmark: BenchmarkLogger
-    monitor: SystemMonitor
-    global_model: nn.Module
-    current_round_started_at: float = 0.0
-    total_started_at: float = 0.0
-    llm_overhead_total: float = 0.0
-    round_accuracy: List[float] = field(default_factory=list)
-    round_loss: List[float] = field(default_factory=list)
-    mean_client_accuracy: List[float] = field(default_factory=list)
-    std_client_accuracy: List[float] = field(default_factory=list)
-
-
-def load_json(path: Path) -> Dict[str, Any]:
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def save_json(path: Path, payload: Dict[str, Any]) -> None:
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2)
-
-
-def get_parameters(model: nn.Module) -> List[np.ndarray]:
-    return [val.detach().cpu().numpy() for _, val in model.state_dict().items()]
-
-
-def set_parameters(model: nn.Module, parameters: List[np.ndarray]) -> None:
-    params_dict = zip(model.state_dict().keys(), parameters)
-    state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
-    model.load_state_dict(state_dict, strict=True)
-
-
-def infer_output_size(cfg: Dict[str, Any], y: Optional[np.ndarray] = None) -> int:
-    if "OUTPUT_SIZE" in cfg and int(cfg["OUTPUT_SIZE"]) > 0:
-        return int(cfg["OUTPUT_SIZE"])
-    if "NUM_ATCKS" in cfg:
-        return int(cfg["NUM_ATCKS"]) + 1
-    if y is None:
-        raise ValueError("Could not infer OUTPUT_SIZE; set OUTPUT_SIZE or NUM_ATCKS in config")
-    return int(np.max(y)) + 1
-
-
 def build_model(cfg: Dict[str, Any], feature_count: int, output_size: int) -> nn.Module:
     mode = str(cfg["MODE"]).upper()
     if mode == "DNN":
@@ -190,7 +113,7 @@ def build_model(cfg: Dict[str, Any], feature_count: int, output_size: int) -> nn
             hidden1_size=int(cfg.get("HIDDEN1_SIZE", 64)),
             hidden2_size=int(cfg.get("HIDDEN2_SIZE", 32)),
             output_size=output_size,
-            dropout_rate=float(cfg.get("DROPOUT_RATE", 0.0)),
+            dropout_rate=float(cfg.get("DROUPOUT_RATE", 0.0)),
         )
     if mode == "TT":
         emb_dim = int(cfg.get("EMB_DIM", 56))
@@ -204,32 +127,38 @@ def build_model(cfg: Dict[str, Any], feature_count: int, output_size: int) -> nn
             num_classes=output_size,
             num_layers=int(cfg.get("NUM_LAYERS", 3)),
             num_heads=num_heads,
-            dropout=float(cfg.get("DROPOUT_RATE", 0.1)),
+            dropout=float(cfg.get("DROUPOUT_RATE", 0.1)),
         )
     raise ValueError(f"Unsupported MODE={cfg['MODE']}")
 
 
-def load_eval_data(cfg: Dict[str, Any]) -> Tuple[DataLoader, int, int]:
-    use_notebook_stage = bool(cfg.get("USE_NOTEBOOK_DATA_STAGE", True))
-    if use_notebook_stage:
-        prepared = prepare_notebook_data(cfg)
-        loader = build_eval_loader(prepared, batch_size=int(cfg.get("BATCH_SIZE", 64)))
-        return loader, prepared.feature_count, prepared.output_size
+# ============================================================
+# PARAMETER HELPERS
+# ============================================================
 
-    raise ValueError(
-        "USE_NOTEBOOK_DATA_STAGE=false is not implemented in this version. "
-        "Enable the notebook-compatible data stage in config.json."
-    )
+def get_parameters(model: nn.Module) -> List[np.ndarray]:
+    return [val.detach().cpu().numpy() for _, val in model.state_dict().items()]
 
 
-def evaluate_model(model: nn.Module, loader: DataLoader) -> Tuple[float, float]:
+def set_parameters(model: nn.Module, parameters: Sequence[np.ndarray]) -> None:
+    params_dict = zip(model.state_dict().keys(), parameters)
+    state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
+    model.load_state_dict(state_dict, strict=True)
+
+
+# ============================================================
+# METRICS / EVAL
+# ============================================================
+
+def evaluate_model(model: nn.Module, loader: DataLoader) -> Tuple[float, float, float, float, float]:
     criterion = nn.CrossEntropyLoss()
     model.eval()
     model.to(DEVICE)
 
     total = 0
-    correct = 0
     loss_sum = 0.0
+    all_preds: List[int] = []
+    all_labels: List[int] = []
 
     with torch.no_grad():
         for features, labels in loader:
@@ -238,292 +167,384 @@ def evaluate_model(model: nn.Module, loader: DataLoader) -> Tuple[float, float]:
             outputs = model(features)
             loss_sum += criterion(outputs, labels).item() * labels.size(0)
             preds = torch.argmax(outputs, dim=1)
+
             total += labels.size(0)
-            correct += (preds == labels).sum().item()
+            all_preds.extend(preds.cpu().numpy().tolist())
+            all_labels.extend(labels.cpu().numpy().tolist())
 
     if total == 0:
-        return 0.0, 0.0
-    return loss_sum / total, correct / total
+        return 0.0, 0.0, 0.0, 0.0, 0.0
+
+    avg_loss = loss_sum / total
+    acc = float(np.mean(np.array(all_preds) == np.array(all_labels)))
+    f1 = float(f1_score(all_labels, all_preds, average="weighted", zero_division=0))
+    recall = float(recall_score(all_labels, all_preds, average="weighted", zero_division=0))
+    precision = float(precision_score(all_labels, all_preds, average="weighted", zero_division=0))
+
+    return avg_loss, acc, f1, recall, precision
+
+
+def metric_stats(values: List[float]) -> Tuple[float, float, float]:
+    if not values:
+        return 0.0, 0.0, 0.0
+    return float(min(values)), float(max(values)), float(sum(values) / len(values))
+
+
+def print_final_metric_summary(state: "RuntimeState") -> None:
+    acc_min, acc_max, acc_avg = metric_stats(state.round_accuracy)
+    f1_min, f1_max, f1_avg = metric_stats(state.round_f1)
+    recall_min, recall_max, recall_avg = metric_stats(state.round_recall)
+    precision_min, precision_max, precision_avg = metric_stats(state.round_precision)
+
+    print("\n" + "=" * 72)
+    print("[Server] FINAL METRICS SUMMARY")
+    print("=" * 72)
+    print(f"Accuracy   | min={acc_min:.4f} max={acc_max:.4f} avg={acc_avg:.4f}")
+    print(f"F1 Score   | min={f1_min:.4f} max={f1_max:.4f} avg={f1_avg:.4f}")
+    print(f"Recall     | min={recall_min:.4f} max={recall_max:.4f} avg={recall_avg:.4f}")
+    print(f"Precision  | min={precision_min:.4f} max={precision_max:.4f} avg={precision_avg:.4f}")
+
+
+# ============================================================
+# STATE / PATHS
+# ============================================================
+
+@dataclass
+class RuntimeState:
+    cfg: Dict[str, Any]
+    prepared: Any
+    output_dir: Path
+    model_dir: Path
+    server_dir: Path
+    state_dir: Path
+    eval_loader: DataLoader
+    global_model: nn.Module
+    round_accuracy: List[float] = field(default_factory=list)
+    round_loss: List[float] = field(default_factory=list)
+    round_f1: List[float] = field(default_factory=list)
+    round_recall: List[float] = field(default_factory=list)
+    round_precision: List[float] = field(default_factory=list)
+    mean_client_accuracy: List[float] = field(default_factory=list)
+    std_client_accuracy: List[float] = field(default_factory=list)
+    monitor: Optional[Any] = None
+
+
+def load_json(path: Path) -> Dict[str, Any]:
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_json(path: Path, payload: Dict[str, Any]) -> None:
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+
+
+def resolve_output_dir(cfg: Dict[str, Any]) -> Path:
+    safe_cfg = dict(cfg)
+    safe_cfg.setdefault("EPOCHS", safe_cfg.get("LOCAL_EPOCHS", 1))
+    return Path(cfg["PATH_TEMPLATE"].format(**safe_cfg)).resolve()
+
+
+def load_config(config_path: Path) -> Dict[str, Any]:
+    cfg = load_json(config_path)
+
+    cfg.setdefault("FL", True)
+    cfg.setdefault("MODE", "DNN")
+    cfg.setdefault("EPOCHS", cfg.get("LOCAL_EPOCHS", 1))
+    cfg.setdefault("NUM_CLIENTS", 1)
+    cfg.setdefault("ROUNDS", 10)
+    cfg.setdefault("BATCH_SIZE", 64)
+    cfg.setdefault("LEARNING_RATE", 0.0025)
+    cfg.setdefault("DATA_GROUPS", 240)
+    cfg.setdefault("BATCH_ROUND", 6)
+    cfg.setdefault("NUM_ATCKS", 14)
+    cfg.setdefault("INPUT_SIZE", 98)
+    cfg.setdefault("OUTPUT_SIZE", int(cfg["NUM_ATCKS"]) + 1)
+    cfg.setdefault(
+        "PATH_TEMPLATE",
+        "results/{MODE}-FL-{FL}-{NUM_CLIENTS}-clients-{NUM_ATCKS}-atk-{ROUNDS}-rounds-{EPOCHS}-epochs-{LEARNING_RATE}-lr-{DATA_GROUPS}-groups-llm-{LLM}",
+    )
+    cfg.setdefault("LLM", False)
+    cfg.setdefault("LLM_TRIGGER_ROUND", cfg["ROUNDS"] + 1)
+    cfg.setdefault("ALLOW_ARCHITECTURE_CHANGE", False)
+
+    cfg.setdefault("MIN_FIT_CLIENTS", cfg["NUM_CLIENTS"])
+    cfg.setdefault("MIN_AVAILABLE_CLIENTS", cfg["NUM_CLIENTS"])
+    cfg.setdefault("MIN_EVALUATE_CLIENTS", 0)
+    cfg.setdefault("FRACTION_FIT", 1.0)
+    cfg.setdefault("FRACTION_EVALUATE", 0.0)
+
+    return cfg
+
+
+def persist_round_artifacts(
+    state: RuntimeState,
+    round_idx: int,
+    model: nn.Module,
+    loss: float,
+    accuracy: float,
+    f1: float,
+    recall: float,
+    precision: float,
+) -> None:
+    model_path = state.model_dir / f"GlobalModel_{round_idx}.pth"
+    torch.save(model.state_dict(), model_path)
+
+    with (state.output_dir / f"Global_{round_idx}_loss").open("wb") as f:
+        pickle.dump([loss], f)
+    with (state.output_dir / f"Global_{round_idx}_accuracy").open("wb") as f:
+        pickle.dump([accuracy], f)
+    with (state.output_dir / f"Global_{round_idx}_f1").open("wb") as f:
+        pickle.dump([f1], f)
+    with (state.output_dir / f"Global_{round_idx}_recall").open("wb") as f:
+        pickle.dump([recall], f)
+    with (state.output_dir / f"Global_{round_idx}_precision").open("wb") as f:
+        pickle.dump([precision], f)
+
+    latest = {
+        "round": round_idx,
+        "loss": float(loss),
+        "accuracy": float(accuracy),
+        "f1": float(f1),
+        "recall": float(recall),
+        "precision": float(precision),
+        "model_path": str(model_path),
+    }
+    save_json(state.state_dir / "latest_round.json", latest)
 
 
 def build_results_snapshot(state: RuntimeState) -> Dict[str, List[float]]:
     return {
         "global_accuracy": list(state.round_accuracy),
         "global_loss": list(state.round_loss),
+        "global_f1": list(state.round_f1),
+        "global_recall": list(state.round_recall),
+        "global_precision": list(state.round_precision),
         "mean_client_accuracy": list(state.mean_client_accuracy),
         "std_client_accuracy": list(state.std_client_accuracy),
     }
 
 
-def persist_round_artifacts(state: RuntimeState, round_idx: int, model: nn.Module, loss: float, accuracy: float) -> None:
-    state.model_dir.mkdir(parents=True, exist_ok=True)
-    ckpt_path = state.model_dir / f"GlobalModel_{round_idx}.pth"
-    torch.save(model.state_dict(), ckpt_path)
-
-    with (state.output_dir / f"Global_{round_idx}_loss").open("wb") as f:
-        pickle.dump([loss], f)
-    with (state.output_dir / f"Global_{round_idx}_accuracy").open("wb") as f:
-        pickle.dump([accuracy], f)
-
-    print(f"[Server] Saved checkpoint: {ckpt_path}")
-
+# ============================================================
+# FLOWER STRATEGY
+# ============================================================
 
 class DemoFedAvg(fl.server.strategy.FedAvg):
-    def __init__(self, state: RuntimeState, *args, **kwargs) -> None:
+    def __init__(self, state: RuntimeState, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.state = state
 
-    def configure_fit(self, server_round, parameters, client_manager):
-        self.state.current_round_started_at = time.time()
-        self.state.benchmark.start_round(server_round)
-        print(f"\n{'=' * 70}\n[Server] Starting round {server_round}\n{'=' * 70}")
-        return super().configure_fit(server_round, parameters, client_manager)
-
-    def aggregate_fit(self, server_round, results, failures):
+    def aggregate_fit(
+        self,
+        server_round: int,
+        results: List[Tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
+        failures: List[BaseException],
+    ):
         aggregated = super().aggregate_fit(server_round, results, failures)
         if aggregated is None:
-            print(f"[Server] No aggregated parameters returned for round {server_round}")
-            return aggregated
+            return None
 
-        aggregated_parameters, aggregated_metrics = aggregated
-        if aggregated_parameters is None:
-            print(f"[Server] Aggregated parameters are None for round {server_round}")
-            return aggregated
-
-        ndarray_params = fl.common.parameters_to_ndarrays(aggregated_parameters)
-        set_parameters(self.state.global_model, ndarray_params)
-        self.state.global_model.to(DEVICE)
-
-        eval_loss, eval_acc = evaluate_model(self.state.global_model, self.state.eval_loader)
-        self.state.round_loss.append(float(eval_loss))
-        self.state.round_accuracy.append(float(eval_acc))
+        parameters_aggregated, metrics_aggregated = aggregated
+        aggregated_ndarrays = fl.common.parameters_to_ndarrays(parameters_aggregated)
+        set_parameters(self.state.global_model, aggregated_ndarrays)
 
         client_accs: List[float] = []
+        samples_this_round = 0
         for _, fit_res in results:
-            metrics = fit_res.metrics or {}
-            for key in ("train_accuracy", "accuracy", "local_accuracy"):
-                if key in metrics:
-                    try:
-                        client_accs.append(float(metrics[key]))
-                        break
-                    except Exception:
-                        pass
+            samples_this_round += int(fit_res.num_examples)
+            if "train_accuracy" in fit_res.metrics:
+                client_accs.append(float(fit_res.metrics["train_accuracy"]))
+            elif "local_accuracy" in fit_res.metrics:
+                client_accs.append(float(fit_res.metrics["local_accuracy"]))
 
         if client_accs:
             self.state.mean_client_accuracy.append(float(np.mean(client_accs)))
             self.state.std_client_accuracy.append(float(np.std(client_accs)))
         else:
-            self.state.mean_client_accuracy.append(float(eval_acc))
+            self.state.mean_client_accuracy.append(0.0)
             self.state.std_client_accuracy.append(0.0)
 
-        persist_round_artifacts(self.state, server_round, self.state.global_model, eval_loss, eval_acc)
+        eval_loss, eval_acc, eval_f1, eval_recall, eval_precision = evaluate_model(
+            self.state.global_model, self.state.eval_loader
+        )
 
-        round_train_time = max(time.time() - self.state.current_round_started_at, 0.0)
-        samples_this_round = int(sum(fit_res.num_examples for _, fit_res in results))
-        epochs = int(self.state.cfg.get("EPOCHS", 1))
-        learning_rate = float(self.state.cfg.get("LEARNING_RATE", 1e-3))
-        self.state.benchmark.log_memory()
-        self.state.benchmark.end_round(
-            train_time=round_train_time,
-            eval_time=0.0,
-            accuracy=float(eval_acc),
-            loss=float(eval_loss),
-            samples_this_round=samples_this_round,
-            learning_rate=learning_rate,
-            epochs=epochs,
+        self.state.round_loss.append(float(eval_loss))
+        self.state.round_accuracy.append(float(eval_acc))
+        self.state.round_f1.append(float(eval_f1))
+        self.state.round_recall.append(float(eval_recall))
+        self.state.round_precision.append(float(eval_precision))
+
+        persist_round_artifacts(
+            self.state,
+            server_round,
+            self.state.global_model,
+            eval_loss,
+            eval_acc,
+            eval_f1,
+            eval_recall,
+            eval_precision,
         )
 
         print(
             f"[Server] Round {server_round} complete | "
-            f"loss={eval_loss:.6f} acc={eval_acc:.4f} samples={samples_this_round}"
+            f"acc={eval_acc:.4f} | f1={eval_f1:.4f} | "
+            f"recall={eval_recall:.4f} | precision={eval_precision:.4f} | "
+            f"loss={eval_loss:.6f} | samples={samples_this_round}"
         )
 
-        if bool(self.state.cfg.get("LLM", False)) and server_round == int(self.state.cfg.get("LLM_TRIGGER_ROUND", -1)):
-            self._run_llm_update(server_round)
+        if bool(self.state.cfg.get("LLM", False)) and int(server_round) == int(self.state.cfg.get("LLM_TRIGGER_ROUND", -1)):
+            try:
+                from llm import llm_mid_training_update
 
-        return aggregated_parameters, aggregated_metrics
+                config_path = Path(self.state.cfg.get("CONFIG_PATH", "config.json")).resolve()
+                model_path = self.state.model_dir / f"GlobalModel_{server_round}.pth"
 
-    def _run_llm_update(self, round_idx: int) -> None:
-        model_path = self.state.model_dir / f"GlobalModel_{round_idx}.pth"
-        results_snapshot = build_results_snapshot(self.state)
+                new_cfg = llm_mid_training_update(
+                    model_path=str(model_path),
+                    config_path=str(config_path),
+                    results_snapshot=build_results_snapshot(self.state),
+                    round_idx=server_round,
+                    trigger_round=int(self.state.cfg["LLM_TRIGGER_ROUND"]),
+                    allow_architecture_change=bool(self.state.cfg.get("ALLOW_ARCHITECTURE_CHANGE", False)),
+                )
 
-        print(f"[Server] Triggering LLM update at round {round_idx}")
-        llm_started_at = time.time()
+                if isinstance(new_cfg, dict) and new_cfg:
+                    old_cfg = copy.deepcopy(self.state.cfg)
+                    self.state.cfg.update(new_cfg)
+                    save_json(
+                        self.state.state_dir / f"llm_update_round_{server_round}.json",
+                        {
+                            "round": server_round,
+                            "old_cfg": old_cfg,
+                            "new_cfg": self.state.cfg,
+                        },
+                    )
+                    print(f"[Server] LLM update applied at round {server_round}")
+            except Exception as e:
+                print(f"[Server] LLM update failed at round {server_round}: {e}")
+
+        return parameters_aggregated, metrics_aggregated
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def build_runtime(config_path: Path) -> RuntimeState:
+    cfg = load_config(config_path)
+    cfg["CONFIG_PATH"] = str(config_path.resolve())
+
+    output_dir = resolve_output_dir(cfg)
+    model_dir = output_dir / "models"
+    server_dir = output_dir / "server"
+    state_dir = output_dir / "state"
+
+    model_dir.mkdir(parents=True, exist_ok=True)
+    server_dir.mkdir(parents=True, exist_ok=True)
+    state_dir.mkdir(parents=True, exist_ok=True)
+
+    prepared = prepare_notebook_data(cfg)
+    eval_loader = build_eval_loader(prepared, batch_size=int(cfg.get("BATCH_SIZE", 64)))
+
+    feature_count = int(prepared.feature_count)
+    output_size = int(prepared.output_size)
+
+    global_model = build_model(cfg, feature_count=feature_count, output_size=output_size).to(DEVICE)
+
+    save_json(server_dir / "resolved_config.json", cfg)
+
+    if getattr(prepared, "scaler", None) is not None:
+        with (state_dir / "scaler.pkl").open("wb") as f:
+            pickle.dump(prepared.scaler, f)
+
+    monitor = None
+    if SystemMonitor is not None:
         try:
-            new_cfg = llm_mid_training_update(
-                model_path=str(model_path),
-                config_path=str(self.state.config_path),
-                results_snapshot=results_snapshot,
-                round_idx=round_idx,
-                trigger_round=int(self.state.cfg["LLM_TRIGGER_ROUND"]),
-                allow_architecture_change=bool(self.state.cfg.get("ALLOW_ARCHITECTURE_CHANGE", False)),
+            monitor = SystemMonitor(
+                sampling_interval=1.0,
+                fl_mode=True,
+                llm_mode=bool(cfg.get("LLM", False)),
             )
-        finally:
-            llm_elapsed = time.time() - llm_started_at
-            self.state.llm_overhead_total += llm_elapsed
-            self.state.benchmark.log_llm_overhead(self.state.llm_overhead_total)
+        except Exception:
+            monitor = None
 
-        if not new_cfg:
-            print("[Server] LLM returned no safe update; keeping current config")
-            return
-
-        tracked_keys = [
-            "LEARNING_RATE",
-            "EPOCHS",
-            "BATCH_SIZE",
-            "HIDDEN1_SIZE",
-            "HIDDEN2_SIZE",
-            "DROPOUT_RATE",
-            "EMB_DIM",
-            "MLP_DIM",
-        ]
-        changed = False
-        for key in tracked_keys:
-            if key in new_cfg and self.state.cfg.get(key) != new_cfg.get(key):
-                print(f"[Server] Config update: {key}: {self.state.cfg.get(key)} -> {new_cfg.get(key)}")
-                self.state.cfg[key] = new_cfg[key]
-                changed = True
-
-        if changed:
-            save_json(self.state.config_path, self.state.cfg)
-            print(f"[Server] Updated config written to {self.state.config_path}")
-        else:
-            print("[Server] LLM produced no effective runtime changes")
+    return RuntimeState(
+        cfg=cfg,
+        prepared=prepared,
+        output_dir=output_dir,
+        model_dir=model_dir,
+        server_dir=server_dir,
+        state_dir=state_dir,
+        eval_loader=eval_loader,
+        global_model=global_model,
+        monitor=monitor,
+    )
 
 
-
-def make_fit_config_fn(state: RuntimeState):
-    def fit_config(server_round: int) -> Dict[str, Any]:
+def fit_config_fn_factory(state: RuntimeState):
+    def fit_config_fn(server_round: int) -> Dict[str, Any]:
         return {
-            "current_round": server_round,
+            "current_round": int(server_round),
             "local_epochs": int(state.cfg.get("EPOCHS", 1)),
+            "epochs": int(state.cfg.get("EPOCHS", 1)),
             "learning_rate": float(state.cfg.get("LEARNING_RATE", 1e-3)),
             "batch_size": int(state.cfg.get("BATCH_SIZE", 64)),
             "mode": str(state.cfg.get("MODE", "DNN")).upper(),
         }
-
-    return fit_config
-
-
-
-def initialise_global_model(state: RuntimeState, output_size: int) -> None:
-    init_ckpt = state.cfg.get("INITIAL_CHECKPOINT")
-    if init_ckpt:
-        ckpt_path = Path(init_ckpt)
-    else:
-        ckpt_path = state.model_dir / f"0_Input_Random_Model_{str(state.cfg['MODE']).upper()}.pth"
-
-    if ckpt_path.exists():
-        print(f"[Server] Loading initial checkpoint: {ckpt_path}")
-        loaded = torch.load(ckpt_path, map_location=DEVICE)
-        state.global_model.load_state_dict(loaded)
-    else:
-        print(f"[Server] Initial checkpoint not found, creating: {ckpt_path}")
-        ckpt_path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(state.global_model.state_dict(), ckpt_path)
-
-    state.global_model.to(DEVICE)
-
-
-
-def build_runtime(config_path: Path, output_dir: Optional[Path]) -> RuntimeState:
-    cfg = load_json(config_path)
-    mode = str(cfg.get("MODE", "DNN")).upper()
-    fl_enabled = bool(cfg.get("FL", True))
-    if not fl_enabled:
-        raise ValueError("This server script is for federated mode. Set FL=true in config.json.")
-
-    eval_loader, feature_count, output_size = load_eval_data(cfg)
-    cfg["MODE"] = mode
-    cfg["OUTPUT_SIZE"] = output_size
-    cfg["INPUT_SIZE"] = int(cfg.get("INPUT_SIZE", feature_count))
-    if cfg["INPUT_SIZE"] != feature_count:
-        raise ValueError(
-            f"INPUT_SIZE mismatch: config has {cfg['INPUT_SIZE']}, evaluation data has {feature_count} features"
-        )
-
-    if output_dir is None:
-        path_template = cfg.get(
-            "PATH_TEMPLATE",
-            "results/{MODE}-FL-{FL}-{NUM_CLIENTS}-clients-{NUM_ATCKS}-atk-{ROUNDS}-rounds-{EPOCHS}-epochs-{LEARNING_RATE}-lr-{DATA_GROUPS}-groups-llm-{LLM}",
-        )
-        safe_cfg = copy.deepcopy(cfg)
-        output_dir = Path(path_template.format(**safe_cfg))
-    output_dir.mkdir(parents=True, exist_ok=True)
-    model_dir = output_dir / "models"
-
-    model = build_model(cfg, feature_count=feature_count, output_size=output_size)
-    monitor = SystemMonitor(
-        sampling_interval=float(cfg.get("MONITOR_INTERVAL_SEC", 1.0)),
-        fl_mode=True,
-        llm_mode=bool(cfg.get("LLM", False)),
-    )
-    benchmark = BenchmarkLogger(
-        output_path=str(output_dir),
-        mode="federated",
-        model_type=mode,
-    )
-
-    state = RuntimeState(
-        cfg=cfg,
-        eval_loader=eval_loader,
-        feature_count=feature_count,
-        output_dir=output_dir,
-        config_path=config_path,
-        model_dir=model_dir,
-        benchmark=benchmark,
-        monitor=monitor,
-        global_model=model,
-    )
-    initialise_global_model(state, output_size)
-    return state
-
+    return fit_config_fn
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Federated IDS demo server")
     parser.add_argument("--config", default="config.json", help="Path to config.json")
-    parser.add_argument("--host", default="0.0.0.0", help="Flower bind host")
-    parser.add_argument("--port", type=int, default=8080, help="Flower bind port")
-    parser.add_argument("--output-dir", default=None, help="Optional explicit output directory")
+    parser.add_argument("--host", default="127.0.0.1", help="Bind host")
+    parser.add_argument("--port", type=int, default=4269, help="Bind port")
     args = parser.parse_args()
 
-    config_path = Path(args.config).resolve()
-    output_dir = Path(args.output_dir).resolve() if args.output_dir else None
-    state = build_runtime(config_path=config_path, output_dir=output_dir)
+    started = time.time()
+    state = build_runtime(Path(args.config).resolve())
+
+    print(f"[Server] Artifact root: {state.output_dir}")
+    print(f"[Server] Feature count: {state.prepared.feature_count}")
+    print(f"[Server] Output size: {state.prepared.output_size}")
+    print("=" * 72)
+    print(f"[Server] Starting FL for {state.cfg['ROUNDS']} rounds on {args.host}:{args.port}")
+    print("=" * 72)
+
+    if state.monitor is not None:
+        try:
+            state.monitor.start()
+        except Exception:
+            state.monitor = None
 
     strategy = DemoFedAvg(
         state=state,
         fraction_fit=float(state.cfg.get("FRACTION_FIT", 1.0)),
         fraction_evaluate=float(state.cfg.get("FRACTION_EVALUATE", 0.0)),
-        min_fit_clients=int(state.cfg.get("MIN_FIT_CLIENTS", 2)),
+        min_fit_clients=int(state.cfg.get("MIN_FIT_CLIENTS", state.cfg["NUM_CLIENTS"])),
         min_evaluate_clients=int(state.cfg.get("MIN_EVALUATE_CLIENTS", 0)),
-        min_available_clients=int(state.cfg.get("MIN_AVAILABLE_CLIENTS", 2)),
+        min_available_clients=int(state.cfg.get("MIN_AVAILABLE_CLIENTS", state.cfg["NUM_CLIENTS"])),
+        on_fit_config_fn=fit_config_fn_factory(state),
         initial_parameters=fl.common.ndarrays_to_parameters(get_parameters(state.global_model)),
-        on_fit_config_fn=make_fit_config_fn(state),
     )
 
-    server_address = f"{args.host}:{args.port}"
-    print(f"[Server] Device: {DEVICE}")
-    print(f"[Server] Mode: {state.cfg['MODE']}")
-    print(f"[Server] FL: {state.cfg['FL']}")
-    print(f"[Server] LLM: {state.cfg.get('LLM', False)}")
-    print(f"[Server] Output dir: {state.output_dir}")
-    print(f"[Server] Starting Flower server on {server_address}")
-
-    state.total_started_at = time.time()
-    state.monitor.start()
     try:
         fl.server.start_server(
-            server_address=server_address,
-            config=fl.server.ServerConfig(num_rounds=int(state.cfg.get("ROUNDS", 1))),
+            server_address=f"{args.host}:{args.port}",
+            config=fl.server.ServerConfig(num_rounds=int(state.cfg["ROUNDS"])),
             strategy=strategy,
         )
     finally:
-        total_time = time.time() - state.total_started_at
-        state.benchmark.log_experiment_time(total_time)
-        state.monitor.stop()
-        state.monitor.save_report(str(state.output_dir / "system_report.json"))
+        total_time = time.time() - started
+
+        if state.monitor is not None:
+            try:
+                state.monitor.stop()
+                state.monitor.save_report(str(state.output_dir / "system_report.json"))
+            except Exception:
+                pass
+
+        print_final_metric_summary(state)
         save_json(state.output_dir / "final_runtime_config.json", state.cfg)
         print(f"[Server] Finished. Total runtime: {total_time:.2f}s")
 
