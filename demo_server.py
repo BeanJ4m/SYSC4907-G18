@@ -493,6 +493,38 @@ def fit_config_fn_factory(state: RuntimeState):
         }
     return fit_config_fn
 
+import socket
+
+def wait_for_clients(host: str, port: int, min_clients: int, timeout: int = 10):
+    print("=" * 72)
+    print(f"[Server] Waiting at least {timeout}s and for {min_clients} clients...")
+    print("=" * 72)
+
+    start_time = time.time()
+    connected_clients = set()
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind((host, port))
+    sock.listen()
+
+    sock.settimeout(1.0)
+
+    while True:
+        elapsed = time.time() - start_time
+
+        try:
+            conn, addr = sock.accept()
+            connected_clients.add(addr[0])
+            print(f"[Server] Client detected from {addr[0]} ({len(connected_clients)}/{min_clients})")
+            conn.close()
+        except socket.timeout:
+            pass
+
+        if elapsed >= timeout and len(connected_clients) >= min_clients:
+            break
+
+    sock.close()
+    print(f"[Server] Starting FL with {len(connected_clients)} clients after {elapsed:.1f}s\n")
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Federated IDS demo server")
@@ -529,6 +561,13 @@ def main() -> None:
     )
 
     try:
+        wait_for_clients(
+            host=args.host,
+            port=args.port,
+            min_clients=int(state.cfg["MIN_AVAILABLE_CLIENTS"]),
+            timeout=10
+        )
+
         fl.server.start_server(
             server_address=f"{args.host}:{args.port}",
             config=fl.server.ServerConfig(num_rounds=int(state.cfg["ROUNDS"])),

@@ -788,7 +788,19 @@ def main() -> None:
     print(f"[Client {args.client_id}] Connecting to {args.server}")
 
     monitor.start()
-    fl.client.start_numpy_client(server_address=args.server, client=client)
+
+    print(f"[Client {args.client_id}] Waiting for server...")
+
+    while True:
+        try:
+            fl.client.start_numpy_client(
+                server_address=args.server,
+                client=client,
+            )
+            break  # exit if connection succeeds and completes
+        except Exception as e:
+            print(f"[Client {args.client_id}] Server not available, retrying in 3s...")
+            time.sleep(3)
 
 
 if __name__ == "__main__":
