@@ -790,7 +790,7 @@ def main() -> None:
     monitor.start()
 
     print(f"[Client {args.client_id}] Waiting for server...")
-
+#testing
     while True:
         try:
             fl.client.start_numpy_client(
