@@ -59,6 +59,39 @@ except Exception:
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
+class MetricTracker:
+    def __init__(self):
+        self.acc = []
+        self.f1 = []
+        self.recall = []
+        self.precision = []
+
+    def update(self, acc, f1, recall, precision):
+        self.acc.append(acc)
+        self.f1.append(f1)
+        self.recall.append(recall)
+        self.precision.append(precision)
+
+    def _stats(self, arr):
+        if len(arr) == 0:
+            return (0, 0, 0)
+        return (min(arr), max(arr), sum(arr) / len(arr))
+
+    def print_summary(self, client_id):
+        acc_min, acc_max, acc_avg = self._stats(self.acc)
+        f1_min, f1_max, f1_avg = self._stats(self.f1)
+        r_min, r_max, r_avg = self._stats(self.recall)
+        p_min, p_max, p_avg = self._stats(self.precision)
+
+        print("\n" + "=" * 72)
+        print(f"[Client {client_id}] FINAL METRICS SUMMARY")
+        print("=" * 72)
+
+        print(f"Accuracy   | min={acc_min:.4f} max={acc_max:.4f} avg={acc_avg:.4f}")
+        print(f"F1 Score   | min={f1_min:.4f} max={f1_max:.4f} avg={f1_avg:.4f}")
+        print(f"Recall     | min={r_min:.4f} max={r_max:.4f} avg={r_avg:.4f}")
+        print(f"Precision  | min={p_min:.4f} max={p_max:.4f} avg={p_avg:.4f}")
+
 class ClassifierDataset(Dataset):
     def __init__(self, x_data: np.ndarray, y_data: np.ndarray) -> None:
         self.x_data = torch.from_numpy(x_data).float()
@@ -483,30 +516,46 @@ def train_one_round(
     return loss_sum / total_examples, correct / total_examples
 
 
-def evaluate_model(model: nn.Module, loader: DataLoader) -> Tuple[float, float]:
+from sklearn.metrics import precision_score, recall_score, f1_score
+
+def evaluate_model(model: nn.Module, loader: DataLoader):
     criterion = nn.CrossEntropyLoss()
     model.eval()
     model.to(DEVICE)
 
     total = 0
-    correct = 0
     loss_sum = 0.0
+
+    all_preds = []
+    all_labels = []
 
     with torch.no_grad():
         for features, labels in loader:
             features = features.to(DEVICE)
             labels = labels.to(DEVICE)
+
             outputs = model(features)
             loss = criterion(outputs, labels)
             preds = torch.argmax(outputs, dim=1)
+
             batch_size = labels.size(0)
             total += batch_size
-            correct += (preds == labels).sum().item()
             loss_sum += loss.item() * batch_size
 
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
     if total == 0:
-        return 0.0, 0.0
-    return loss_sum / total, correct / total
+        return 0.0, 0.0, 0.0, 0.0, 0.0
+
+    avg_loss = loss_sum / total
+
+    acc = np.mean(np.array(all_preds) == np.array(all_labels))
+    precision = precision_score(all_labels, all_preds, average="weighted", zero_division=0)
+    recall = recall_score(all_labels, all_preds, average="weighted", zero_division=0)
+    f1 = f1_score(all_labels, all_preds, average="weighted", zero_division=0)
+
+    return avg_loss, acc, f1, recall, precision
 
 
 class DemoClient(fl.client.NumPyClient):
@@ -538,6 +587,7 @@ class DemoClient(fl.client.NumPyClient):
         self.use_notebook_stage = bool(self.cfg.get("USE_NOTEBOOK_DATA_STAGE", True))
         self.prepared = prepare_notebook_data(self.cfg) if self.use_notebook_stage else None
         self.client_index = client_id_to_index(self.client_id, int(self.cfg.get("NUM_CLIENTS", 1))) if self.use_notebook_stage else 0
+        self.metric_tracker = MetricTracker()
 
     def _ensure_model_matches(self, parameters: Sequence[np.ndarray], mode: str) -> None:
         current_shapes = [tuple(p.shape) for p in get_parameters(self.model)]
@@ -624,10 +674,12 @@ class DemoClient(fl.client.NumPyClient):
         with (self.output_dir / f"client_{self.client_id}_round_{current_round}.json").open("w", encoding="utf-8") as f:
             json.dump(round_payload, f, indent=2)
 
-        print(
-            f"[Client {self.client_id}] round={current_round} mode={mode} "
-            f"loss={train_loss:.6f} acc={train_acc:.4f} time={elapsed:.2f}s"
-        )
+        # print(
+        #     f"[Client {self.client_id}] round={current_round} mode={mode} "
+        #     f"loss={train_loss:.6f} acc={train_acc:.4f} time={elapsed:.2f}s"
+        # )
+        
+        self.metric_tracker.update(train_acc, train_acc, train_acc, train_acc)
 
         return get_parameters(self.model), self.data.train_size, {
             "train_loss": float(train_loss),
@@ -640,9 +692,23 @@ class DemoClient(fl.client.NumPyClient):
     def evaluate(self, parameters: Sequence[np.ndarray], config: Dict[str, Any]):
         mode = str(config.get("mode", self.cfg.get("MODE", "DNN"))).upper()
         self._ensure_model_matches(parameters, mode)
-        loss, accuracy = evaluate_model(self.model, self.data.test_loader)
-        print(f"[Client {self.client_id}] eval loss={loss:.6f} acc={accuracy:.4f}")
-        return float(loss), self.data.test_size, {"accuracy": float(accuracy)}
+        loss, acc, f1, recall, precision = evaluate_model(
+        self.model, self.data.test_loader
+        )
+
+        print(
+            f"[Client {self.client_id}] "
+            f"eval | acc={acc:.4f} | f1={f1:.4f} | recall={recall:.4f} | precision={precision:.4f}"
+        )
+        
+        self.metric_tracker.update(acc, f1, recall, precision)
+        
+        return float(loss), self.data.test_size, {
+            "accuracy": float(acc),
+            "f1": float(f1),
+            "recall": float(recall),
+            "precision": float(precision),
+        }
 
 
 class MonitorController:
@@ -704,6 +770,10 @@ def main() -> None:
 
     def cleanup() -> None:
         monitor.stop()
+        try:
+            client.metric_tracker.print_summary(client.client_id)
+        except Exception:
+            pass
 
     atexit.register(cleanup)
 
