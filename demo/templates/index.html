@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="layout">
+
+        <div class="sidebar">
+        
+            <h3>Sessions</h3>
+        
+            {% for s in sessions %}
+            
+            <div class="session" onclick="loadSession('{{s}}')">
+            
+            {{s}}
+            
+            </div>
+            
+            {% endfor %}
+        
+        </div>
+        
+        
+        <div class="chat">
+        
+            <div class="header">
+                <div class="header-top">
+                    <span id="session-date-header">Session — {{today}}</span> 
+                    <div class="model-selector">
+                        <label for="model-select">LLM Model:</label>
+                        <select id="model-select">
+                            {% for model in available_models %}
+                                <option value="{{ model }}" {% if model == default_model %}selected{% endif %}>{{ model }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                Supported Queries  (example: "what happened at 10 am")<br>
+                                   (example: "what happened between 10:05 am and 10:35 am")
+            
+            </div>
+        
+            <div id="chat-box">
+            
+            </div>
+        
+            <div class="input">
+            
+                <input id="question" placeholder="Ask about network activity">
+            
+                <button onclick="send()">Send</button>
+            
+            </div>
+        
+        </div>
+        
+    </div>
+
+    <script src="{{ url_for('static', filename='chat.js') }}"></script>
+    <script>
+        // Initialize chat history from the backend
+        const initialChat = {{ chat | tojson }};
+        initialChat.forEach(msg => {
+            addMessage(msg.question, "user");
+            if (msg.answer.error) {
+                let errorMessage = msg.answer.message;
+                if (Array.isArray(errorMessage)) {
+                    errorMessage = errorMessage.join("\n");
+                }
+                errorMessage = errorMessage.replace(/\*\*/g, "");
+                addMessage(errorMessage, "bot");
+            } else {
+                if (msg.answer.explanation) {
+                    msg.answer.explanation = msg.answer.explanation.replace(/\*\*/g, "");
+                }
+                if (msg.answer.security_recommendations) {
+                    msg.answer.security_recommendations = msg.answer.security_recommendations.replace(/\*\*/g, "");
+                }
+                addMessage(msg.answer, "bot");
+            }
+        });
+    </script>
+</body>
+</html>
